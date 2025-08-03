@@ -1,12 +1,19 @@
 [package]
-name = "uroman-rs"
+name = "uroman"
 authors = ["fulm-o <fulmlumo@gmail.com>"]
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/fulm-o/uroman-rs"
+description = "A blazingly fast, self-contained Rust reimplementation of the uroman universal romanizer."
+readme = "README.md"
 license = "Apache-2.0"
 build = "build.rs"
 keywords = ["uroman", "romanization", "unicode", "nlp", "cli"]
 categories = ["command-line-utilities", "text-processing"]
+
+[[bin]]
+name = "uroman-rs"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5.42", features = ["derive"] }
@@ -19,7 +26,7 @@ unicode_names2 = "2.0.0"
 unicode-properties = "0.1.3"
 unicode-normalization = "0.1.19"
 unicode-segmentation = "1.12.0"
-num-rational = { version = "0.4.2", features = ["serde"]}
+num-rational = { version = "0.4.2", features = ["serde"] }
 ordered-float = "5.0.0"
 phf = { version = "0.12.1", features = ["macros"] }
 indexmap = "2.10.0"

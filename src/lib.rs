@@ -145,7 +145,7 @@ impl Uroman {
     }
 
     /// Registers all prefixes of a string `s` for efficient lookup later.
-    pub fn register_s_prefix(&mut self, s: &str) {
+    fn register_s_prefix(&mut self, s: &str) {
         let mut prefix = String::with_capacity(s.chars().count());
         for c in s.chars() {
             prefix.push(c);
@@ -519,7 +519,7 @@ impl Uroman {
     }
 
     /// A helper to get a string value from `dict_str`, returning `""` if not found.
-    pub fn dict_str_get(&self, k1: &str, k2_char: char) -> &str {
+    fn dict_str_get(&self, k1: &str, k2_char: char) -> &str {
         self.dict_str
             .get(&(k1.to_string(), k2_char.to_string()))
             .map(|s| s.as_str()) // Option<&String> -> Option<&str>
@@ -528,14 +528,14 @@ impl Uroman {
 
     /// A helper to get a boolean value from `dict_bool`, returning `false` if not found.
     /// This mimics the behavior of Python's `defaultdict(bool)`.
-    pub fn dict_bool_get(&self, k1: &str, k2: &str) -> bool {
+    fn dict_bool_get(&self, k1: &str, k2: &str) -> bool {
         self.dict_bool
             .get(&(k1.to_string(), k2.to_string()))
             .copied()
             .unwrap_or(false)
     }
 
-    pub fn second_rom_filter(&self, c: &str, rom: Option<&str>) -> Option<String> {
+    fn second_rom_filter(&self, c: &str, rom: Option<&str>) -> Option<String> {
         if c.is_empty() {
             return rom.map(|s| s.to_string());
         }
@@ -564,23 +564,23 @@ impl Uroman {
         rom.map(|s| s.to_string())
     }
 
-    /// Gets the numeric value of a character from the loaded `num_props` data.
-    /// This is the correct replacement for Python's `unicodedata.numeric()`.
-    ///
-    /// It looks up the character, then the "value" key, and converts the result to `f64`.
-    pub fn get_numeric_value(&self, c: char) -> Option<f64> {
-        self.num_props
-            .get(&c)
-            .and_then(|props| props.get("value"))
-            .and_then(|val| match val {
-                Value::Int(i) => Some(*i as f64),
-                Value::Float(f) => Some(*f),
-                _ => None,
-            })
-    }
+    // /// Gets the numeric value of a character from the loaded `num_props` data.
+    // /// This is the correct replacement for Python's `unicodedata.numeric()`.
+    // ///
+    // /// It looks up the character, then the "value" key, and converts the result to `f64`.
+    // fn get_numeric_value(&self, c: char) -> Option<f64> {
+    //     self.num_props
+    //         .get(&c)
+    //         .and_then(|props| props.get("value"))
+    //         .and_then(|val| match val {
+    //             Value::Int(i) => Some(*i as f64),
+    //             Value::Float(f) => Some(*f),
+    //             _ => None,
+    //         })
+    // }
 
     /// Checks if a character is a non-spacing mark.
-    pub fn char_is_nonspacing_mark(&self, c: char) -> bool {
+    fn char_is_nonspacing_mark(&self, c: char) -> bool {
         use unicode_properties::UnicodeGeneralCategory;
         matches!(
             c.general_category(),
@@ -588,16 +588,16 @@ impl Uroman {
         )
     }
 
-    /// Checks if a character is a format control character.
-    pub fn char_is_format_char(&self, c: char) -> bool {
-        use unicode_properties::UnicodeGeneralCategory;
-        matches!(
-            c.general_category(),
-            unicode_properties::GeneralCategory::Format
-        )
-    }
+    // /// Checks if a character is a format control character.
+    // fn char_is_format_char(&self, c: char) -> bool {
+    //     use unicode_properties::UnicodeGeneralCategory;
+    //     matches!(
+    //         c.general_category(),
+    //         unicode_properties::GeneralCategory::Format
+    //     )
+    // }
 
-    pub fn chr_name(&self, c: char) -> String {
+    fn chr_name(&self, c: char) -> String {
         // Check for an overridden name in dict_str.
         if let Some(name) = self.dict_str.get(&("name".to_string(), c.to_string())) {
             return name.clone();
@@ -612,7 +612,7 @@ impl Uroman {
     /// This is a special algorithmic romanization that decomposes a Hangul syllable
     /// into its constituent Jamo (lead, vowel, tail) and maps them to roman characters.
     /// The results are cached for performance.
-    pub fn unicode_hangul_romanization(&self, c: char) -> Option<String> {
+    fn unicode_hangul_romanization(&self, c: char) -> Option<String> {
         if let Some(cached_rom) = self.hangul_rom.borrow().get(&c) {
             return Some(cached_rom.clone());
         }
@@ -644,23 +644,23 @@ impl Uroman {
         }
     }
 
-    pub fn unicode_hangul_romanization_str(&mut self, s: &str, pass_through_p: bool) -> String {
-        let mut result = String::new();
-        for c in s.chars() {
-            if let Some(rom) = self.unicode_hangul_romanization(c) {
-                result.push_str(&rom);
-            } else if pass_through_p {
-                result.push(c);
-            }
-        }
-        result
-    }
+    // fn unicode_hangul_romanization_str(&mut self, s: &str, pass_through_p: bool) -> String {
+    //     let mut result = String::new();
+    //     for c in s.chars() {
+    //         if let Some(rom) = self.unicode_hangul_romanization(c) {
+    //             result.push_str(&rom);
+    //         } else if pass_through_p {
+    //             result.push(c);
+    //         }
+    //     }
+    //     result
+    // }
 
     /// Returns the script name of a character.
     ///
     /// This is derived from `UnicodeDataProps*.txt` and stored in `dict_str`.
     /// Returns an empty string if not found.
-    pub fn chr_script_name(&self, c: char) -> String {
+    fn chr_script_name(&self, c: char) -> String {
         self.dict_str
             .get(&("script".to_string(), c.to_string()))
             .cloned()
@@ -843,17 +843,6 @@ impl Uroman {
                     .to_output_string()
                     .expect("JSON serialization failed");
                 writeln!(writer, "{}", output)?;
-            }
-
-            if !silent {
-                if line_number % 1000 == 0 {
-                    eprint!("{}", line_number);
-                } else if line_number % 100 == 0 {
-                    eprint!(".");
-                }
-                if line_number % 100 == 0 {
-                    io::stderr().flush()?;
-                }
             }
 
             if let Some(max) = max_lines

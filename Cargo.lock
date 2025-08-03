@@ -644,7 +644,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "uroman-rs"
+name = "uroman"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",

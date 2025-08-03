@@ -4,7 +4,7 @@ use std::fs;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use thiserror::Error;
-use uroman_rs::{RomFormat, RomanizationError, Uroman};
+use uroman::{RomFormat, RomanizationError, Uroman};
 
 #[derive(Error, Debug)]
 pub enum UromanError {

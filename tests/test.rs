@@ -4,7 +4,7 @@ use std::process::Command;
 
 fn assert_uroman_output(input_path: &str, expected_output_path: &str) {
     let expected_output = fs::read_to_string(expected_output_path).unwrap_or_else(|_| {
-        panic!("期待される出力ファイルが読み込めませんでした: {expected_output_path}")
+        panic!("could not read expected output file: {expected_output_path}")
     });
 
     let expected_output_normalized = expected_output.replace("\r\n", "\n");

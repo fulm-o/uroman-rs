@@ -1,4 +1,4 @@
-use uroman_rs::{RomanizationResult, Uroman};
+use uroman::{RomanizationResult, Uroman};
 
 #[track_caller]
 fn assert_romanizes_to_str(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
