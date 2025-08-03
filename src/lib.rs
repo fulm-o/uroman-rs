@@ -6,7 +6,6 @@
 
 #![allow(clippy::too_many_arguments)]
 
-use clap::ValueEnum;
 use indexmap::IndexMap;
 use regex::Regex;
 use serde::Serialize;
@@ -35,7 +34,7 @@ static KAYAH_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"kayah\s+(\S+)\s
 static MENDE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"m\d+\s+(\S+)\s*$").unwrap());
 static SPACE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\S\s+\S").unwrap());
 
-#[derive(ValueEnum, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum RomFormat {
     #[default]
     Str,

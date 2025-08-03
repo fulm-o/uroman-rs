@@ -1,13 +1,38 @@
 //! Command-line interface for uroman-rs.
+
+use dirs;
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 use clap::Parser;
 use std::fs;
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, IsTerminal, Write};
 use std::path::PathBuf;
 use thiserror::Error;
+use clap::ValueEnum;
 use uroman::{RomFormat, RomanizationError, Uroman};
 
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
+enum CliRomFormat {
+    #[default]
+    Str,
+    Edges,
+    Alts,
+    Lattice,
+}
+
+impl From<CliRomFormat> for RomFormat {
+    fn from(cli_format: CliRomFormat) -> Self {
+        match cli_format {
+            CliRomFormat::Str => RomFormat::Str,
+            CliRomFormat::Edges => RomFormat::Edges,
+            CliRomFormat::Alts => RomFormat::ALTS,
+            CliRomFormat::Lattice => RomFormat::Lattice,
+        }
+    }
+}
+
 #[derive(Error, Debug)]
-pub enum UromanError {
+enum UromanError {
     #[error("Failed to open input file '{path}': {source}")]
     InputFileOpen { path: PathBuf, source: io::Error },
 
@@ -17,6 +42,9 @@ pub enum UromanError {
     #[error(transparent)]
     Io(#[from] io::Error),
 
+    #[error("REPL error: {0}")]
+    Repl(#[from] ReadlineError),
+
     #[error("Romanization failed: {0}")]
     Romanization(#[from] RomanizationError),
 }
@@ -25,7 +53,7 @@ pub enum UromanError {
 #[command(
     author = "fulm-o",
     version,
-    about = "A Rust port of uroman for high-speed romanization",
+    about,
 )]
 struct Cli {
     /// Direct text input to be romanized.
@@ -45,16 +73,12 @@ struct Cli {
     lcode: Option<String>,
 
     /// Output format of romanization. 'edges' provides offsets.
-    #[arg(short = 'f', long, value_enum, default_value_t = RomFormat::default())]
-    rom_format: RomFormat,
+    #[arg(short = 'f', long, value_enum, default_value_t = CliRomFormat::default())]
+    rom_format: CliRomFormat,
 
     /// Limit uroman to the first n lines of a file.
     #[arg(long)]
     max_lines: Option<usize>,
-
-    /// Cache size for romanization (for speed).
-    #[arg(short, long, default_value_t = 20000)] // DEFAULT_ROM_MAX_CACHE_SIZE
-    cache_size: usize,
 
     /// Decodes Unicode escape notation, e.g., \\u03B4 to δ.
     #[arg(short = 'd', long, action = clap::ArgAction::Count)]
@@ -95,22 +119,24 @@ fn run() -> Result<(), UromanError> {
     //     return Ok(());
     // }
 
-    let stream_mode_active = cli.input_filename.is_some() || cli.direct_input.is_empty();
+    if cli.direct_input.is_empty() && cli.input_filename.is_none() {
+        if std::io::stdin().is_terminal() {
+            run_repl(&uroman, &cli)?;
+            return Ok(());
+        }
+    }
+
+    let mut writer = get_writer(&cli.output_filename)?;
 
     if !cli.direct_input.is_empty() {
-        let mut writer: Box<dyn Write> = if stream_mode_active {
-            Box::new(io::stderr())
-        } else {
-            Box::new(io::stdout())
-        };
         process_direct_input(&uroman, &cli, &mut writer)?;
     }
 
-    if stream_mode_active {
-        process_stream(&uroman, &cli)?;
+    if cli.input_filename.is_some() || cli.direct_input.is_empty() {
+        process_stream(&uroman, &cli, &mut writer)?;
     }
 
-    io::stdout().flush()?;
+    writer.flush()?;
 
     Ok(())
 }
@@ -121,20 +147,28 @@ fn process_direct_input(
     writer: &mut dyn Write,
 ) -> Result<(), UromanError> {
     for s in &cli.direct_input {
-        let result = uroman.romanize_string(s, cli.lcode.as_deref(), Some(&cli.rom_format))?;
+        let result = uroman.romanize_string(
+            s,
+            cli.lcode.as_deref(),
+            Some(&cli.rom_format.into())
+        )?;
         writeln!(writer, "{}", result.to_output_string()?)?;
     }
     Ok(())
 }
 
-fn process_stream(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
+fn process_stream(
+    uroman: &Uroman,
+    cli: &Cli,
+    writer: &mut dyn Write,
+) -> Result<(), UromanError> {
     let reader = get_reader(&cli.input_filename)?;
-    let writer = get_writer(&cli.output_filename)?;
+
     uroman.romanize_file(
         reader,
         writer,
         cli.lcode.as_deref(),
-        &cli.rom_format,
+        &cli.rom_format.into(),
         cli.max_lines,
         cli.silent,
     )?;
@@ -165,4 +199,71 @@ fn get_writer(path: &Option<PathBuf>) -> Result<Box<dyn Write>, UromanError> {
         }
         None => Ok(Box::new(BufWriter::new(io::stdout()))),
     }
+}
+
+
+fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
+    let mut rl = DefaultEditor::new()?;
+
+    let history_path = || -> Option<std::path::PathBuf> {
+        let mut path = dirs::cache_dir()?;
+        path.push("uroman-rs");
+        std::fs::create_dir_all(&path).ok()?;
+        path.push("history.txt");
+        Some(path)
+    };
+
+    if let Some(path) = history_path() {
+        if rl.load_history(&path).is_err() {
+        }
+    }
+
+    let lcode = cli.lcode.as_deref();
+    let rom_format: RomFormat = cli.rom_format.into();
+
+    loop {
+        let readline = rl.readline(">> ");
+
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(&line)?;
+
+                if line.trim() == ":exit" || line.trim() == ":quit" {
+                    break;
+                }
+
+                if line.trim().is_empty() {
+                    continue;
+                }
+
+                match uroman.romanize_string(&line, lcode, Some(&rom_format)) {
+                    Ok(result) => match result.to_output_string() {
+                        Ok(output) => println!("{}", output),
+                        Err(e) => eprintln!("Error formatting output: {}", e),
+                    },
+                    Err(e) => eprintln!("Romanization error: {}", e),
+                }
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("Interrupted. To exit, press Ctrl-D or type :exit.");
+                continue;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("Exiting.");
+                break;
+            }
+            Err(err) => {
+                eprintln!("REPL Error: {}", err);
+                break;
+            }
+        }
+    }
+
+    if let Some(path) = history_path() {
+        if let Err(err) = rl.save_history(&path) {
+            eprintln!("Warning: could not save history to {:?}: {}", path, err);
+        }
+    }
+
+    Ok(())
 }
