@@ -1,6 +1,5 @@
 //! Command-line interface for uroman-rs.
 
-use dirs;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use clap::Parser;
@@ -119,12 +118,11 @@ fn run() -> Result<(), UromanError> {
     //     return Ok(());
     // }
 
-    if cli.direct_input.is_empty() && cli.input_filename.is_none() {
-        if std::io::stdin().is_terminal() {
+    if cli.direct_input.is_empty() && cli.input_filename.is_none()
+        && std::io::stdin().is_terminal() {
             run_repl(&uroman, &cli)?;
             return Ok(());
         }
-    }
 
     let mut writer = get_writer(&cli.output_filename)?;
 
@@ -213,10 +211,9 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
         Some(path)
     };
 
-    if let Some(path) = history_path() {
-        if rl.load_history(&path).is_err() {
+    if let Some(path) = history_path()
+        && rl.load_history(&path).is_err() {
         }
-    }
 
     let lcode = cli.lcode.as_deref();
     let rom_format: RomFormat = cli.rom_format.into();
@@ -259,11 +256,10 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
         }
     }
 
-    if let Some(path) = history_path() {
-        if let Err(err) = rl.save_history(&path) {
+    if let Some(path) = history_path()
+        && let Err(err) = rl.save_history(&path) {
             eprintln!("Warning: could not save history to {:?}: {}", path, err);
         }
-    }
 
     Ok(())
 }
