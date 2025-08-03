@@ -1,0 +1,19 @@
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "Unicode-DFS-2016",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "warn"
+
+[advisories]
+
+[sources]
