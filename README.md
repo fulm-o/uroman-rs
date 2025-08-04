@@ -10,6 +10,7 @@ A blazingly fast, self-contained Rust reimplementation of the `uroman` universal
 
 `uroman-rs` is a complete rewrite of the original `uroman` (Universal Romanizer) in Rust. It provides high-speed, accurate romanization for a vast number of languages and writing systems, faithfully reproducing the behavior of the original implementation.
 
+This project is licensed under the Apache License 2.0. As a reimplementation, it respects and includes the license of the original `uroman` software. For full details, please refer to the [License section](#license) below.
 
 ## ✨ Features
 
@@ -18,6 +19,16 @@ A blazingly fast, self-contained Rust reimplementation of the `uroman` universal
 *   **🎯 High Fidelity**: A true drop-in replacement for the original `uroman`, passing its comprehensive test suite.
 *   **🧰 Rich Output Formats**: Supports multiple output formats, including simple strings (`str`), and structured JSON data with character offsets (`edges`), alternatives (`alts`), and all lattice paths (`lattice`).
 *   **🔧 Versatile**: Use it as a standalone Command-Line Interface (CLI) tool or as a library in your own Rust applications.
+
+## 📝 A Note on Romanization Logic and Limitations
+
+`uroman-rs` is a high-fidelity reimplementation of the original `uroman` and passes its comprehensive test suite. This means its romanization logic, including its strengths and limitations, is identical to the original implementation created by NLP researchers.
+
+The original authors provide excellent documentation on the specific behaviors of the romanizer. To use `uroman-rs` effectively, we recommend reviewing these details, especially concerning:
+
+*   **[Reversibility](https://github.com/isi-nlp/uroman?tab=readme-ov-file#reversibility)**: Details on whether the romanization process can be reliably reversed.
+*   **[Known Limitations](https://github.com/isi-nlp/uroman?tab=readme-ov-file#limitations)**: Important information about cases where `uroman` may not perform as expected.
+
 
 ## 📦 Installation
 

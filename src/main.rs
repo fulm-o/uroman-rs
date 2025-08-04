@@ -3,7 +3,8 @@
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use clap::Parser;
-use std::fs;
+use unicode_width::UnicodeWidthStr;
+use std::{fs, time};
 use std::io::{self, BufRead, BufReader, BufWriter, IsTerminal, Write};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -50,7 +51,7 @@ enum UromanError {
 
 #[derive(Parser, Debug)]
 #[command(
-    author = "fulm-o",
+    author,
     version,
     about,
 )]
@@ -80,8 +81,8 @@ struct Cli {
     max_lines: Option<usize>,
 
     /// Decodes Unicode escape notation, e.g., \\u03B4 to δ.
-    #[arg(short = 'd', long, action = clap::ArgAction::Count)]
-    decode_unicode: u8,
+    #[arg(short = 'd', long, action = clap::ArgAction::SetTrue)]
+    decode_unicode: bool,
 
     /// Run and display a few samples.
     #[arg(long, action = clap::ArgAction::SetTrue)]
@@ -90,10 +91,6 @@ struct Cli {
     /// Suppress progress indicators.
     #[arg(long, action = clap::ArgAction::SetTrue)]
     silent: bool,
-
-    /// Verbose output.
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
 }
 
 fn main() {
@@ -113,16 +110,20 @@ fn run() -> Result<(), UromanError> {
     let cli = Cli::parse();
     let uroman = Uroman::new();
 
-    // if cli.sample {
-    //     show_samples(&uroman);
-    //     return Ok(());
-    // }
-
-    if cli.direct_input.is_empty() && cli.input_filename.is_none()
+    if cli.direct_input.is_empty() && cli.input_filename.is_none() && !cli.sample
         && std::io::stdin().is_terminal() {
             run_repl(&uroman, &cli)?;
             return Ok(());
         }
+
+    if cli.sample
+        && cli.direct_input.is_empty()
+        && cli.input_filename.is_none()
+        && cli.output_filename.is_none()
+        && !cli.silent {
+        show_samples(&uroman)?;
+        return Ok(());
+    }
 
     let mut writer = get_writer(&cli.output_filename)?;
 
@@ -136,6 +137,10 @@ fn run() -> Result<(), UromanError> {
 
     writer.flush()?;
 
+    if cli.sample {
+        println!("Note: The --sample option was ignored because input was provided via other flags.");
+    }
+
     Ok(())
 }
 
@@ -144,12 +149,22 @@ fn process_direct_input(
     cli: &Cli,
     writer: &mut dyn Write,
 ) -> Result<(), UromanError> {
+    let rom_format = Some(&cli.rom_format.into());
+    let lcode = cli.lcode.as_deref();
     for s in &cli.direct_input {
-        let result = uroman.romanize_string(
-            s,
-            cli.lcode.as_deref(),
-            Some(&cli.rom_format.into())
-        )?;
+        let result = if !cli.decode_unicode {
+            uroman.romanize_string(
+                s,
+                lcode,
+                rom_format,
+            )?
+        } else {
+            uroman.romanize_with_unicode_escapes(
+                s,
+                lcode,
+                rom_format,
+            )?
+        };
         writeln!(writer, "{}", result.to_output_string()?)?;
     }
     Ok(())
@@ -168,6 +183,7 @@ fn process_stream(
         cli.lcode.as_deref(),
         &cli.rom_format.into(),
         cli.max_lines,
+        cli.decode_unicode,
         cli.silent,
     )?;
     Ok(())
@@ -260,6 +276,76 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
         && let Err(err) = rl.save_history(&path) {
             eprintln!("Warning: could not save history to {:?}: {}", path, err);
         }
+
+    Ok(())
+}
+
+
+fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
+    println!("Running sample conversions with uroman-rs:");
+    println!("---------------------------------------");
+
+    let samples = [
+        ("jpn", "一兆二千万四十二えん ほしい！"),
+        ("ukr", "Привіт, світе!"),
+        ("kor", "안녕하세요 세계"),
+        ("zho", "你好，世界！谢谢。"),
+        ("rus", "Привет, мир! Как дела?"),
+        ("ell", "Καλημέρα, κόσμε."),
+        ("ara", "مرحبا بالعالم"),
+        ("heb", "שלום עולם"),
+        ("hin", "नमस्ते दुनिया"),
+        ("tai", "สวัสดีชาวโลก"),
+        ("hye", "Բարև աշխարհ"),
+        ("amh", "ሰላም ልዑል!"),
+        ("", "¡Hola! ¿Cómo estás?"),
+        ("", "မင်္ဂလာပါ"),
+        ("", "ལྷ་ས་གྲོང་ཁྱེར"),
+        ("", "ສະບາຍດີ"),
+        ("", "ᚑᚌᚐᚋ ᚛ᚅᚐᚋᚓ᚜"),
+        ("", "ᐊᕐᕌᒍᒥ ᓄᑖᒥ ᖁᕕᐊᓱᒋᑦ"),
+        ("", "გამარჯობა"),
+        ("", "ಧನ್ಯವಾದಗಳು"),
+        ("", "ⴰⵎⵢⴰ ⵉⵊⵊⴻⵏ ⵙⵉⵏ"),
+        ("", "⠓⠑⠇⠇⠕ ⠺⠕⠗⠇⠙"),
+        ("", "𓊪𓏏𓍯𓃭𓐝𓇌𓋴"),
+        ("", "ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ"),
+        ("", "ꦧꦱꦗꦮ"),
+        ("", "Tôi yêu tiếng Việt!"),
+        ("", "✨ユーロマン✨（ウロマン💮）"),
+    ];
+
+    let max_width = 29;
+    let mut total_duration_ns: u128 = 0;
+
+    for (lang_code, text) in samples.iter() {
+        let start = time::Instant::now();
+        let romanized = uroman.romanize_string(text, Some(lang_code), None)?.to_output_string()?;
+        let duration  = start.elapsed();
+        total_duration_ns += duration.as_nanos();
+
+        let current_width = UnicodeWidthStr::width(*text);
+        let padding = " ".repeat(max_width - current_width);
+        if lang_code.is_empty() {
+            println!("      {}{} -> {}", text, padding, romanized);
+        } else {
+            println!("[{}] {}{} -> {}", lang_code, text, padding, romanized);
+        }
+    }
+
+    println!("---------------------------------------");
+
+    let num_samples = samples.len() as u128;
+    if num_samples > 0 {
+        let avg_duration_ns = total_duration_ns / num_samples;
+        let avg_duration_us = avg_duration_ns as f64 / 1_000.0;
+        let avg_duration_ms = avg_duration_us / 1_000.0;
+
+        println!(
+            "Avg. processing time: {:.3} ms ({:.1} μs) per sample",
+            avg_duration_ms, avg_duration_us
+        );
+    }
 
     Ok(())
 }

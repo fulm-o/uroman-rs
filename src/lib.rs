@@ -20,7 +20,7 @@ use unicode_properties::UnicodeGeneralCategory;
 
 pub use crate::edge::Edge;
 use crate::lattice::Lattice;
-use crate::utils::slot_value_in_double_colon_del_list;
+use crate::utils::{decode_unicode_escapes, slot_value_in_double_colon_del_list};
 
 mod decompositions;
 mod edge;
@@ -434,10 +434,6 @@ impl Uroman {
                     );
                 }
 
-                // 'u2r'フォーマットの行からもRomRuleを生成する
-                // この部分は、sとtを抽出してから既存のfrom_lineロジックに渡すか、
-                // RomRule生成に必要な部分をここに再実装する。
-                // ここでは簡易的にRomRuleを直接構築する。
                 if let Some(rule) = RomRule::from_line(line, provenance, file_format, self) {
                     self.add_rom_rule(rule);
                 }
@@ -752,6 +748,17 @@ impl Uroman {
         }
     }
 
+    /// Decodes Unicode escape sequences before performing romanization.
+    pub fn romanize_with_unicode_escapes(
+        &self,
+        s: &str,
+        lcode: Option<&str>,
+        rom_format: Option<&RomFormat>,
+    ) -> Result<RomanizationResult, RomanizationError> {
+        let s = decode_unicode_escapes(s);
+        self.romanize_string(s.as_str(), lcode, rom_format)
+    }
+
     /// Romanizes a stream of text line by line and writes the output to another stream.
     ///
     /// This method efficiently processes large amounts of text by reading from a buffered
@@ -774,6 +781,7 @@ impl Uroman {
         lcode: Option<&str>,
         rom_format: &RomFormat,
         max_lines: Option<usize>,
+        decode_unicode: bool,
         silent: bool,
     ) -> Result<(), RomanizationError> {
         let mut line_number = 0;
@@ -818,7 +826,11 @@ impl Uroman {
                 let (lcode, text_to_romanize) =
                     (parts.first().cloned(), parts.get(1).cloned().unwrap_or(""));
 
-                let result = self.romanize_string(text_to_romanize, lcode, Some(rom_format));
+                let result = if decode_unicode {
+                    self.romanize_with_unicode_escapes(text_to_romanize, lcode, Some(rom_format))
+                } else {
+                    self.romanize_string(text_to_romanize, lcode, Some(rom_format))
+                };
 
                 match rom_format {
                     RomFormat::Str => {

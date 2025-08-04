@@ -13,6 +13,21 @@ fn assert_romanizes_to_str(uroman: &Uroman, input: &str, lcode: Option<&str>, ex
     }
 }
 
+
+#[track_caller]
+fn assert_romanizes_to_str_with_decode(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
+    let result = uroman
+        .romanize_with_unicode_escapes(input, lcode, None)
+        .unwrap_or_else(|e| panic!("Romanization failed for input '{}': {:?}", input, e));
+
+    if let RomanizationResult::Str(result_str) = result {
+        assert_eq!(result_str, expected_str);
+    } else {
+        panic!();
+    }
+}
+
+
 #[test]
 fn test_simple_romanization() {
     let uroman = Uroman::new();
@@ -28,6 +43,27 @@ fn test_simple_romanization() {
     // Test a character with a direct mapping from UnicodeDataOverwrite.txt (e.g., Egyptian Hieroglyph)
     // This assumes '𓍧' maps to '600' in the overwrite table
     assert_romanizes_to_str(&uroman, "𓍧", None, "600");
+}
+
+#[test]
+fn test_romanize_with_decode_unicode_escapes() {
+    let uroman = Uroman::new();
+
+    assert_romanizes_to_str_with_decode(&uroman, "fran\\xE7ais", Some("fra"), "fransais");
+
+    // `Р` (U+0420), `у` (U+0443), `с` (U+0441), `к` (U+043A), `и` (U+0438), `й` (U+0439)
+    let russian_escaped = "\\u0420\\u0443\\u0441\\u0441\\u043A\\u0438\\u0439";
+    assert_romanizes_to_str_with_decode(&uroman, russian_escaped, Some("rus"), "Russky");
+
+    // `你` (U+4F60), `好` (U+597D)
+    assert_romanizes_to_str_with_decode(&uroman, "\\u4F60\\u597D", Some("zho"), "nihao");
+
+    // emoji: "😀" (U+1F600)
+    assert_romanizes_to_str_with_decode(&uroman, "\\U0001F600", None, "😀");
+
+    assert_romanizes_to_str_with_decode(&uroman, "H\\x45LLO", None, "H\\x45LLO");
+
+    assert_romanizes_to_str(&uroman, "fran\\xE7ais", Some("fra"), "fran\\xE7ais");
 }
 
 #[test]
