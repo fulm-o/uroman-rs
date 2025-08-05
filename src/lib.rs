@@ -10,9 +10,11 @@ use indexmap::IndexMap;
 use regex::Regex;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use std::any::TypeId;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Write};
+use std::marker::PhantomData;
 use std::sync::LazyLock;
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
@@ -33,14 +35,93 @@ use rom_rule::{RomRule, RomRules};
 static KAYAH_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"kayah\s+(\S+)\s*$").unwrap());
 static MENDE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"m\d+\s+(\S+)\s*$").unwrap());
 static SPACE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\S\s+\S").unwrap());
+static HANGUL_LEADS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    "g gg n d dd r m b bb s ss - j jj c k t p h"
+        .split_whitespace()
+        .collect()
+});
+static HANGUL_VOWELS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    "a ae ya yae eo e yeo ye o wa wai oe yo u weo we wi yu eu yi i"
+        .split_whitespace()
+        .collect()
+});
+static HANGUL_TAILS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    "- g gg gs n nj nh d l lg lm lb ls lt lp lh m b bs s ss ng j c k t p h"
+        .split_whitespace()
+        .collect()
+});
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum RomFormat {
     #[default]
     Str,
     Edges,
-    ALTS,
+    Alts,
     Lattice,
+}
+
+pub(crate) use rom_format::RomFormatType;
+
+pub mod rom_format {
+    use crate::RomanizationError;
+
+    pub struct Str;
+    pub struct Edges;
+    pub struct Alts;
+    pub struct Lattice;
+
+    pub trait RomFormatType {
+        type Output;
+    }
+
+    impl RomFormatType for Str {
+        type Output = String;
+    }
+
+    impl RomFormatType for Edges {
+        type Output = Result<String, RomanizationError>;
+    }
+
+    impl RomFormatType for Alts {
+        type Output = Result<String, RomanizationError>;
+    }
+
+    impl RomFormatType for Lattice {
+        type Output = Result<String, RomanizationError>;
+    }
+}
+
+pub struct RomanizationOutput<F: RomFormatType> {
+    result: RomanizationResult,
+    _marker: PhantomData<F>,
+}
+
+impl<F: RomFormatType> RomanizationOutput<F> {
+    pub fn to_output_string(self) -> F::Output
+    where
+        F::Output: From<RomanizationResult>,
+    {
+        self.result.into()
+    }
+}
+
+impl From<RomanizationResult> for String {
+    fn from(res: RomanizationResult) -> Self {
+        match res {
+            RomanizationResult::Str(s) => s,
+            _ => panic!("Expected RomanizationResult::Str, but got Edges"),
+        }
+    }
+}
+
+impl From<RomanizationResult> for Result<String, RomanizationError> {
+    fn from(res: RomanizationResult) -> Self {
+        match res {
+            RomanizationResult::Edges(edges) => Ok(serde_json::to_string_pretty(&edges)?),
+            _ => Err(RomanizationError::InternalError("Mismatched result".to_string())),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq, Eq, PartialOrd)]
@@ -702,13 +783,11 @@ impl Uroman {
     }
 
     /// Romanizes a given string.
-    pub fn romanize_string(
+    pub fn romanize_string<F: RomFormatType + 'static>(
         &self,
         s: &str,
         lcode: Option<&str>,
-        rom_format: Option<&RomFormat>,
-    ) -> Result<RomanizationResult, RomanizationError> {
-        let rom_format = rom_format.unwrap_or(&RomFormat::Str);
+    ) -> RomanizationOutput<F> {
         let mut lat = Lattice::new(s, self, lcode);
 
         lat.pick_tibetan_vowel_edge();
@@ -718,56 +797,80 @@ impl Uroman {
         lat.add_braille_numbers();
         lat.add_rom_fall_back_singles();
 
-        match rom_format {
-            RomFormat::Str => {
-                let best_edges = lat.best_rom_edge_path(0, s.chars().count(), false);
+        let type_id = TypeId::of::<F>();
 
-                Ok(
-                    RomanizationResult::Str(
-                        best_edges.iter().map(|edge| edge.txt()).collect::<String>(),
-                    )
-                )
-            },
-            RomFormat::Edges => {
-                let best_edges = lat.best_rom_edge_path(0, s.chars().count(), false);
+        let result = if type_id == TypeId::of::<rom_format::Str>() {
+            let best_edges = lat.best_rom_edge_path(0, s.chars().count(), false);
+            RomanizationResult::Str(
+                best_edges.iter().map(|edge| edge.txt()).collect::<String>(),
+            )
+        } else if type_id == TypeId::of::<rom_format::Edges>() {
+            RomanizationResult::Edges(
+                lat.best_rom_edge_path(0, s.chars().count(), false)
+            )
+        } else if type_id == TypeId::of::<rom_format::Alts>() {
+            let mut best_edges = lat.best_rom_edge_path(0, s.chars().count(), false);
+            lat.add_alternatives(&mut best_edges);
 
-                Ok(RomanizationResult::Edges(best_edges))
-            },
-            RomFormat::ALTS => {
-                let mut best_edges = lat.best_rom_edge_path(0, s.chars().count(), false);
+            RomanizationResult::Edges(best_edges)
+        } else if type_id == TypeId::of::<rom_format::Lattice>() {
+            let mut all_edges = lat.all_edges(0, s.chars().count());
+            lat.add_alternatives(&mut all_edges);
 
-                lat.add_alternatives(&mut best_edges);
-                Ok(RomanizationResult::Edges(best_edges))
-            },
-            RomFormat::Lattice => {
-                let mut all_edges = lat.all_edges(0, s.chars().count());
-                lat.add_alternatives(&mut all_edges);
-                Ok(RomanizationResult::Edges(all_edges))
-            }
+            RomanizationResult::Edges(all_edges)
+        } else {
+            unreachable!("Unknown RomFormatType provided");
+        };
+
+        RomanizationOutput {
+            result,
+            _marker: PhantomData,
         }
     }
 
     /// Decodes Unicode escape sequences before performing romanization.
-    pub fn romanize_with_unicode_escapes(
+    pub fn romanize_escaped<F: RomFormatType + 'static>(
         &self,
         s: &str,
         lcode: Option<&str>,
-        rom_format: Option<&RomFormat>,
-    ) -> Result<RomanizationResult, RomanizationError> {
+    ) -> RomanizationOutput<F> {
         let s = decode_unicode_escapes(s);
-        self.romanize_string(s.as_str(), lcode, rom_format)
+        self.romanize_string::<F>(s.as_str(), lcode)
+    }
+
+    pub fn romanize_escaped_with_format(
+        &self,
+        s: &str,
+        lcode: Option<&str>,
+        rom_format: Option<RomFormat>,
+    ) -> RomanizationResult {
+        let s = decode_unicode_escapes(s);
+        self.romanize_with_format(&s, lcode, rom_format)
+    }
+
+    pub fn romanize_with_format(
+        &self,
+        s: &str,
+        lcode: Option<&str>,
+        rom_format: Option<RomFormat>,
+    ) -> RomanizationResult {
+        let rom_format = rom_format.unwrap_or(RomFormat::Str);
+
+        match rom_format {
+            RomFormat::Str => {
+                let str = self.romanize_string::<rom_format::Str>(s, lcode);
+                RomanizationResult::Str(str.to_output_string())
+            },
+            RomFormat::Edges => self.romanize_string::<rom_format::Edges>(s, lcode).result,
+            RomFormat::Alts => self.romanize_string::<rom_format::Alts>(s, lcode).result,
+            RomFormat::Lattice => self.romanize_string::<rom_format::Lattice>(s, lcode).result,
+        }
     }
 
     /// Romanizes a stream of text line by line and writes the output to another stream.
     ///
     /// This method efficiently processes large amounts of text by reading from a buffered
     /// reader and writing to a writer without loading the entire content into memory.
-    ///
-    /// # Arguments
-    ///
-    /// * `reader` - A buffered reader for the input stream (e.g., a file or stdin).
-    /// * `writer` - A writer for the output stream (e.g., a file or stdout).
-    /// * `lcode` - An optional ISO 639-3 language code to specify the script.
     ///
     /// # Errors
     ///
@@ -778,7 +881,7 @@ impl Uroman {
         mut reader: R,
         mut writer: W,
         lcode: Option<&str>,
-        rom_format: &RomFormat,
+        rom_format: RomFormat,
         max_lines: Option<usize>,
         decode_unicode: bool,
         silent: bool,
@@ -825,20 +928,20 @@ impl Uroman {
                     (parts.first().cloned(), parts.get(1).cloned().unwrap_or(""));
 
                 let result = if decode_unicode {
-                    self.romanize_with_unicode_escapes(text_to_romanize, lcode, Some(rom_format))
+                    self.romanize_escaped_with_format(text_to_romanize, lcode, Some(rom_format))
                 } else {
-                    self.romanize_string(text_to_romanize, lcode, Some(rom_format))
+                    self.romanize_with_format(text_to_romanize, lcode, Some(rom_format))
                 };
 
                 match rom_format {
                     RomFormat::Str => {
                         let prefix = format!("{}{}{} ", lcode_directive, lcode.unwrap_or(""), "");
-                        let output = prefix + &result?.to_output_string().unwrap();
+                        let output = prefix + &result.to_output_string().unwrap();
                         writeln!(writer, "{output}")?;
                     }
                     _ => {
                         let meta_edge = format!(r#"[0,0,"","lcode: {}"]"#, lcode.unwrap_or(""));
-                        let result_json = result?.to_output_string().unwrap();
+                        let result_json = result.to_output_string().unwrap();
                         if let Some(stripped) = result_json.strip_prefix('[') {
                             writeln!(writer, "[{meta_edge},{stripped}")?;
                         } else {
@@ -847,8 +950,12 @@ impl Uroman {
                     }
                 }
             } else {
-                let result = self.romanize_string(line_trimmed, default_lcode, Some(rom_format));
-                let output = result?
+                let result = if decode_unicode {
+                    self.romanize_escaped_with_format(line_trimmed, default_lcode, Some(rom_format))
+                } else {
+                    self.romanize_with_format(line_trimmed, default_lcode, Some(rom_format))
+                };
+                let output = result
                     .to_output_string()
                     .expect("JSON serialization failed");
                 writeln!(writer, "{output}")?;
@@ -875,19 +982,3 @@ impl Uroman {
         Ok(())
     }
 }
-
-static HANGUL_LEADS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
-    "g gg n d dd r m b bb s ss - j jj c k t p h"
-        .split_whitespace()
-        .collect()
-});
-static HANGUL_VOWELS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
-    "a ae ya yae eo e yeo ye o wa wai oe yo u weo we wi yu eu yi i"
-        .split_whitespace()
-        .collect()
-});
-static HANGUL_TAILS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
-    "- g gg gs n nj nh d l lg lm lb ls lt lp lh m b bs s ss ng j c k t p h"
-        .split_whitespace()
-        .collect()
-});
