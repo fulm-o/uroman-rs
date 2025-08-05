@@ -348,15 +348,14 @@ impl Uroman {
                     let vowels_regex1 = abugida_default_vowels.join("|");
                     let vowels_regex2 = abugida_default_vowels
                         .iter()
-                        .map(|v| format!("{}+", v))
+                        .map(|v| format!("{v}+"))
                         .collect::<Vec<_>>()
                         .join("|");
 
                     let re1 =
-                        Regex::new(&format!(r"([cfghkmnqrstxy]?y)({})-?$", vowels_regex2)).unwrap();
+                        Regex::new(&format!(r"([cfghkmnqrstxy]?y)({vowels_regex2})-?$")).unwrap();
                     let re2 = Regex::new(&format!(
-                        r"([bcdfghjklmnpqrstvwxyz]+)({})-?$",
-                        vowels_regex1
+                        r"([bcdfghjklmnpqrstvwxyz]+)({vowels_regex1})-?$"
                     ))
                     .unwrap();
 
@@ -671,7 +670,7 @@ impl Uroman {
         let thai_cancellation_mark = '\u{0E4C}';
         for cp in 0x0E01..0x0E4C {
             if let Some(c) = std::char::from_u32(cp) {
-                let s = format!("{}{}", c, thai_cancellation_mark);
+                let s = format!("{c}{thai_cancellation_mark}");
 
                 let rules_for_s = self.rom_rules.entry(s.clone()).or_default();
                 if rules_for_s.is_empty() {
@@ -690,7 +689,7 @@ impl Uroman {
 
         for c1 in thai_consonants.clone() {
             for v in thai_vowel_modifiers.clone() {
-                let s = format!("{}{}{}", c1, v, thai_cancellation_mark);
+                let s = format!("{c1}{v}{thai_cancellation_mark}");
 
                 let rules_for_s = self.rom_rules.entry(s.clone()).or_default();
                 if rules_for_s.is_empty() {
@@ -803,8 +802,7 @@ impl Uroman {
                 non_utf8_chars_total += 1;
                 if n_error_messages_output < max_n_error_messages {
                     eprintln!(
-                        "Detected encoding error on line {}: non-UTF-8 characters were replaced.",
-                        line_number
+                        "Detected encoding error on line {line_number}: non-UTF-8 characters were replaced."
                     );
                     n_error_messages_output += 1;
                 } else if n_error_messages_output == max_n_error_messages {
@@ -836,15 +834,15 @@ impl Uroman {
                     RomFormat::Str => {
                         let prefix = format!("{}{}{} ", lcode_directive, lcode.unwrap_or(""), "");
                         let output = prefix + &result?.to_output_string().unwrap();
-                        writeln!(writer, "{}", output)?;
+                        writeln!(writer, "{output}")?;
                     }
                     _ => {
                         let meta_edge = format!(r#"[0,0,"","lcode: {}"]"#, lcode.unwrap_or(""));
                         let result_json = result?.to_output_string().unwrap();
                         if let Some(stripped) = result_json.strip_prefix('[') {
-                            writeln!(writer, "[{},{}", meta_edge, stripped)?;
+                            writeln!(writer, "[{meta_edge},{stripped}")?;
                         } else {
-                            writeln!(writer, "{}", result_json)?;
+                            writeln!(writer, "{result_json}")?;
                         }
                     }
                 }
@@ -853,7 +851,7 @@ impl Uroman {
                 let output = result?
                     .to_output_string()
                     .expect("JSON serialization failed");
-                writeln!(writer, "{}", output)?;
+                writeln!(writer, "{output}")?;
             }
 
             if let Some(max) = max_lines
@@ -869,8 +867,7 @@ impl Uroman {
         }
         if non_utf8_chars_total > 0 {
             eprintln!(
-                "Total number of lines with non-UTF-8 characters: {}",
-                non_utf8_chars_total
+                "Total number of lines with non-UTF-8 characters: {non_utf8_chars_total}"
             );
         }
 

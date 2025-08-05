@@ -101,7 +101,7 @@ fn main() {
             return;
         }
 
-        eprintln!("Error: {}", err);
+        eprintln!("Error: {err}");
         std::process::exit(1);
     }
 }
@@ -149,7 +149,8 @@ fn process_direct_input(
     cli: &Cli,
     writer: &mut dyn Write,
 ) -> Result<(), UromanError> {
-    let rom_format = Some(&cli.rom_format.into());
+    let rom_format = &cli.rom_format.into();
+    let rom_format = Some(rom_format);
     let lcode = cli.lcode.as_deref();
     for s in &cli.direct_input {
         let result = if !cli.decode_unicode {
@@ -251,10 +252,10 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
 
                 match uroman.romanize_string(&line, lcode, Some(&rom_format)) {
                     Ok(result) => match result.to_output_string() {
-                        Ok(output) => println!("{}", output),
-                        Err(e) => eprintln!("Error formatting output: {}", e),
+                        Ok(output) => println!("{output}"),
+                        Err(e) => eprintln!("Error formatting output: {e}"),
                     },
-                    Err(e) => eprintln!("Romanization error: {}", e),
+                    Err(e) => eprintln!("Romanization error: {e}"),
                 }
             }
             Err(ReadlineError::Interrupted) => {
@@ -266,7 +267,7 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
                 break;
             }
             Err(err) => {
-                eprintln!("REPL Error: {}", err);
+                eprintln!("REPL Error: {err}");
                 break;
             }
         }
@@ -274,7 +275,7 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
 
     if let Some(path) = history_path()
         && let Err(err) = rl.save_history(&path) {
-            eprintln!("Warning: could not save history to {:?}: {}", path, err);
+            eprintln!("Warning: could not save history to {path:?}: {err}");
         }
 
     Ok(())
@@ -327,9 +328,9 @@ fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
         let current_width = UnicodeWidthStr::width(*text);
         let padding = " ".repeat(max_width - current_width);
         if lang_code.is_empty() {
-            println!("      {}{} -> {}", text, padding, romanized);
+            println!("      {text}{padding} -> {romanized}");
         } else {
-            println!("[{}] {}{} -> {}", lang_code, text, padding, romanized);
+            println!("[{lang_code}] {text}{padding} -> {romanized}");
         }
     }
 
@@ -342,8 +343,7 @@ fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
         let avg_duration_ms = avg_duration_us / 1_000.0;
 
         println!(
-            "Avg. processing time: {:.3} ms ({:.1} μs) per sample",
-            avg_duration_ms, avg_duration_us
+            "Avg. processing time: {avg_duration_ms:.3} ms ({avg_duration_us:.1} μs) per sample"
         );
     }
 

@@ -316,7 +316,7 @@ impl<'a> Lattice<'a> {
             .unwrap_or_else(|| "?".to_string());
 
         if !VOWEL_START_RE.is_match(&next_char_rom.to_lowercase()) {
-            return (true, format!("not-followed-by-vowel {}", next_char_rom));
+            return (true, format!("not-followed-by-vowel {next_char_rom}"));
         }
 
         // Special rules for THAI CHARACTER O ANG (`\u0E2D`)
@@ -918,7 +918,7 @@ impl<'a> Lattice<'a> {
                     if new_rom.starts_with(&rom) {
                         let suffix = &new_rom[rom.len()..];
                         if !suffix.is_empty() && suffix.chars().all(|c| "aeiou".contains(c)) {
-                            edge_annotation = format!("{} c:{} s:{}", edge_annotation, rom, suffix);
+                            edge_annotation = format!("{edge_annotation} c:{rom} s:{suffix}");
                         }
                     }
                     rom = new_rom;
@@ -1474,7 +1474,7 @@ impl<'a> Lattice<'a> {
                             && left_val != 0
                         {
                             let fraction = Ratio::new(right_val, left_val);
-                            let combined_txt = format!("{}/{}", right_val, left_val);
+                            let combined_txt = format!("{right_val}/{left_val}");
                             let combined_orig_txt = format!(
                                 "{}{}{}",
                                 left_edge.orig_txt(),
@@ -1913,7 +1913,7 @@ impl<'a> Lattice<'a> {
                                     {
                                         // Python: return rom + vowel_rom, start-vowel_prefix_len, end+vowel_suffix_len, 'rom exp'
                                         return (
-                                            format!("{}{}", rom, vowel_rom),
+                                            format!("{rom}{vowel_rom}"),
                                             start - vowel_prefix_len,
                                             end + vowel_suffix_len,
                                             Some("rom exp".to_string()),

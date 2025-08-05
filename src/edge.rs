@@ -272,7 +272,7 @@ impl Edge {
                 vs.clone()
             } else if let Some(v) = num_data.value {
                 if let Some(nd) = num_data.n_decimals {
-                    format!("{:.1$}", v, nd)
+                    format!("{v:.nd$}")
                 } else if v.fract() == 0.0 {
                     (v as i64).to_string()
                 } else {
@@ -294,7 +294,7 @@ impl Edge {
                 ""
             };
 
-            let final_txt = format!("{}{}{}", value_s, delimiter, fraction_s);
+            let final_txt = format!("{value_s}{delimiter}{fraction_s}");
 
             // Fallback to original text if the calculated text is empty.
             data.txt = if final_txt.is_empty() {

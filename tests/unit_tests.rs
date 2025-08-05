@@ -4,7 +4,7 @@ use uroman::{RomanizationResult, Uroman};
 fn assert_romanizes_to_str(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
     let result = uroman
         .romanize_string(input, lcode, None)
-        .unwrap_or_else(|e| panic!("Romanization failed for input '{}': {:?}", input, e));
+        .unwrap_or_else(|e| panic!("Romanization failed for input '{input}': {e:?}"));
 
     if let RomanizationResult::Str(result_str) = result {
         assert_eq!(result_str, expected_str);
@@ -18,7 +18,7 @@ fn assert_romanizes_to_str(uroman: &Uroman, input: &str, lcode: Option<&str>, ex
 fn assert_romanizes_to_str_with_decode(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
     let result = uroman
         .romanize_with_unicode_escapes(input, lcode, None)
-        .unwrap_or_else(|e| panic!("Romanization failed for input '{}': {:?}", input, e));
+        .unwrap_or_else(|e| panic!("Romanization failed for input '{input}': {e:?}"));
 
     if let RomanizationResult::Str(result_str) = result {
         assert_eq!(result_str, expected_str);
