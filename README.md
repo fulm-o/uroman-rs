@@ -92,8 +92,6 @@ hallo world
 
 Here is a basic example to get you started.
 
-```rust
-
 ```bash
 cargo add uroman
 ```
