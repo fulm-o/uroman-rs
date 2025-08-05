@@ -1,30 +1,19 @@
-use uroman::{RomanizationResult, Uroman};
+use uroman::{rom_format, Uroman};
 
 #[track_caller]
 fn assert_romanizes_to_str(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
-    let result = uroman
-        .romanize_string(input, lcode, None)
-        .unwrap_or_else(|e| panic!("Romanization failed for input '{input}': {e:?}"));
+    let result = uroman.romanize_string::<rom_format::Str>(input, lcode);
 
-    if let RomanizationResult::Str(result_str) = result {
-        assert_eq!(result_str, expected_str);
-    } else {
-        panic!();
-    }
+    assert_eq!(result.to_output_string(), expected_str);
 }
 
 
 #[track_caller]
 fn assert_romanizes_to_str_with_decode(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
     let result = uroman
-        .romanize_with_unicode_escapes(input, lcode, None)
-        .unwrap_or_else(|e| panic!("Romanization failed for input '{input}': {e:?}"));
+        .romanize_escaped::<rom_format::Str>(input, lcode);
 
-    if let RomanizationResult::Str(result_str) = result {
-        assert_eq!(result_str, expected_str);
-    } else {
-        panic!();
-    }
+    assert_eq!(result.to_output_string(), expected_str);
 }
 
 

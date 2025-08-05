@@ -9,7 +9,7 @@ use std::io::{self, BufRead, BufReader, BufWriter, IsTerminal, Write};
 use std::path::PathBuf;
 use thiserror::Error;
 use clap::ValueEnum;
-use uroman::{RomFormat, RomanizationError, Uroman};
+use uroman::{rom_format, RomFormat, RomanizationError, Uroman};
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
 enum CliRomFormat {
@@ -25,7 +25,7 @@ impl From<CliRomFormat> for RomFormat {
         match cli_format {
             CliRomFormat::Str => RomFormat::Str,
             CliRomFormat::Edges => RomFormat::Edges,
-            CliRomFormat::Alts => RomFormat::ALTS,
+            CliRomFormat::Alts => RomFormat::Alts,
             CliRomFormat::Lattice => RomFormat::Lattice,
         }
     }
@@ -53,7 +53,6 @@ enum UromanError {
 #[command(
     author,
     version,
-    about,
 )]
 struct Cli {
     /// Direct text input to be romanized.
@@ -149,22 +148,21 @@ fn process_direct_input(
     cli: &Cli,
     writer: &mut dyn Write,
 ) -> Result<(), UromanError> {
-    let rom_format = &cli.rom_format.into();
-    let rom_format = Some(rom_format);
+    let rom_format = Some(cli.rom_format.into());
     let lcode = cli.lcode.as_deref();
     for s in &cli.direct_input {
         let result = if !cli.decode_unicode {
-            uroman.romanize_string(
+            uroman.romanize_with_format(
                 s,
                 lcode,
                 rom_format,
-            )?
+            )
         } else {
-            uroman.romanize_with_unicode_escapes(
+            uroman.romanize_escaped_with_format(
                 s,
                 lcode,
                 rom_format,
-            )?
+            )
         };
         writeln!(writer, "{}", result.to_output_string()?)?;
     }
@@ -182,7 +180,7 @@ fn process_stream(
         reader,
         writer,
         cli.lcode.as_deref(),
-        &cli.rom_format.into(),
+        cli.rom_format.into(),
         cli.max_lines,
         cli.decode_unicode,
         cli.silent,
@@ -233,7 +231,6 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
         }
 
     let lcode = cli.lcode.as_deref();
-    let rom_format: RomFormat = cli.rom_format.into();
 
     loop {
         let readline = rl.readline(">> ");
@@ -250,12 +247,9 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
                     continue;
                 }
 
-                match uroman.romanize_string(&line, lcode, Some(&rom_format)) {
-                    Ok(result) => match result.to_output_string() {
-                        Ok(output) => println!("{output}"),
-                        Err(e) => eprintln!("Error formatting output: {e}"),
-                    },
-                    Err(e) => eprintln!("Romanization error: {e}"),
+                match uroman.romanize_with_format(&line, lcode, Some(cli.rom_format.into())).to_output_string() {
+                    Ok(output) => println!("{output}"),
+                    Err(e) => eprintln!("Error formatting output: {e}"),
                 }
             }
             Err(ReadlineError::Interrupted) => {
@@ -288,17 +282,17 @@ fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
 
     let samples = [
         ("jpn", "一兆二千万四十二えん ほしい！"),
-        ("ukr", "Привіт, світе!"),
-        ("kor", "안녕하세요 세계"),
-        ("zho", "你好，世界！谢谢。"),
-        ("rus", "Привет, мир! Как дела?"),
-        ("ell", "Καλημέρα, κόσμε."),
+        ("amh", "ሰላም ልዑል!"),
         ("ara", "مرحبا بالعالم"),
+        ("ell", "Καλημέρα, κόσμε."),
         ("heb", "שלום עולם"),
         ("hin", "नमस्ते दुनिया"),
-        ("tai", "สวัสดีชาวโลก"),
         ("hye", "Բարև աշխարհ"),
-        ("amh", "ሰላም ልዑል!"),
+        ("kor", "안녕하세요 세계"),
+        ("rus", "Привет, мир! Как дела?"),
+        ("tai", "สวัสดีชาวโลก"),
+        ("ukr", "Привіт, світе!"),
+        ("zho", "你好，世界！谢谢。"),
         ("", "¡Hola! ¿Cómo estás?"),
         ("", "မင်္ဂလာပါ"),
         ("", "ལྷ་ས་གྲོང་ཁྱེར"),
@@ -313,7 +307,7 @@ fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
         ("", "ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ"),
         ("", "ꦧꦱꦗꦮ"),
         ("", "Tôi yêu tiếng Việt!"),
-        ("", "✨ユーロマン✨（ウロマン💮）"),
+        ("", "✨ユーロマン✨（ウロマン）"),
     ];
 
     let max_width = 29;
@@ -321,7 +315,7 @@ fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
 
     for (lang_code, text) in samples.iter() {
         let start = time::Instant::now();
-        let romanized = uroman.romanize_string(text, Some(lang_code), None)?.to_output_string()?;
+        let romanized = uroman.romanize_string::<rom_format::Str>(text, Some(lang_code)).to_output_string();
         let duration  = start.elapsed();
         total_duration_ns += duration.as_nanos();
 

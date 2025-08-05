@@ -1,7 +1,7 @@
 # uroman-rs
 
 [![Crates.io](https://img.shields.io/crates/v/uroman.svg)](https://crates.io/crates/uroman)
-[![CI](https://github.com/fulm-o/uroman-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/fulm-o/uroman-rs/actions)
+[![CI](https://github.com/fulm-o/uroman-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/fulm-o/uroman-rs/actions)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 A blazingly fast, self-contained Rust reimplementation of the `uroman` universal romanizer.
@@ -32,7 +32,7 @@ The original authors provide excellent documentation on the specific behaviors o
 
 ## 📦 Installation
 
-You can use `uroman` both as a command-line tool and as a library in your own projects.
+The `uroman-rs` project is available as a crate named uroman. You can use it both as a command-line tool and as a library in your Rust projects.
 
 ### As a Command-Line Tool
 
@@ -51,6 +51,69 @@ To use `uroman` as a library, add it to your project's dependencies.
 ```bash
 cargo add uroman
 ```
+
+## ⚙️ Usage
+
+### Command-Line Interface (CLI)
+
+`uroman-rs` can be used directly from your terminal.
+
+**Show sample conversions:**
+See examples of how various scripts are romanized.
+
+```bash
+uroman-rs --sample
+```
+
+
+**View all options:**
+
+Display the help message for a full list of commands and flags.
+```bash
+uroman-rs --help
+```
+
+
+**Use in REPL:**
+
+Run `uroman-rs` without any arguments to process input line by line. Press `Ctrl+D` to exit.
+
+```bash
+$ uroman-rs
+>> こんにちは、世界！
+konnichiha, shijie!
+>> ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ
+hallo world
+>> (Ctrl+D)
+```
+
+
+### As a Library
+
+Here is a basic example to get you started.
+
+```rust
+
+```bash
+cargo add uroman
+```
+
+```rust
+// `Uroman::new()` is an infallible operation.
+// It doesn't return a `Result`, so no error handling is needed.
+let uroman = Uroman::new();
+
+let romanized_string/*: String*/ = uroman.romanize_string::<rom_format::Str>(
+    "✨ユーロマン✨",
+    Some("jpn"),
+).to_output_string();
+
+assert_eq!(romanized_string, "✨yuuroman✨");
+println!("{romanized_string}");
+```
+
+For more advanced use cases, including file processing and generating detailed JSON output, please see the code in the [`examples/`](./examples) directory.
+
 
 ## 🚀 Benchmark
 

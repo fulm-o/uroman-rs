@@ -1,7 +1,7 @@
 use crate::decompositions::DECOMPOSITIONS;
 use crate::edge::{Edge, NumDataUpdates};
 use crate::rom_rule::RomRule;
-use crate::{AbugidaCacheEntry, RomanizationResult, Uroman};
+use crate::{rom_format, AbugidaCacheEntry, Uroman};
 use num_rational::Ratio;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -680,13 +680,7 @@ impl<'a> Lattice<'a> {
                 && !matches!(tag, "<super>" | "<sub>" | "<noBreak>" | "<compat>")
                 && !decomp_s.is_empty()
             {
-                rom = if let Ok(RomanizationResult::Str(s)) =
-                    self.uroman.romanize_string(decomp_s, None, None)
-                {
-                    Some(s)
-                } else {
-                    None
-                }
+                rom = Some(self.uroman.romanize_string::<rom_format::Str>(decomp_s, None).to_output_string());
             }
 
             if rom.is_some() && self.char_has_numeric_value(target_char) {
