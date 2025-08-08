@@ -791,6 +791,8 @@ impl Uroman {
     ///
     /// # Example
     /// ```
+    /// # use uroman::{Uroman, rom_format};
+    /// # let uroman = Uroman::new();
     /// let lcode = None;
     /// let result = uroman.romanize_string::<rom_format::Str>("ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ", lcode);
     ///
@@ -852,6 +854,8 @@ impl Uroman {
     ///
     /// # Example
     /// ```
+    /// # use uroman::{Uroman, rom_format};
+    /// # let uroman = Uroman::new();
     /// let lcode = None;
     /// let result = uroman.romanize_escaped::<rom_format::Str>("ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ", lcode);
     ///
@@ -877,14 +881,16 @@ impl Uroman {
     ///
     /// # Example
     /// ```
+    /// # use uroman::{Uroman, RomFormat};
+    /// # let uroman = Uroman::new();
     /// let lcode = None;
     /// let result = uroman.romanize_with_format(
-    ///     s,
+    ///     "ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ",
     ///     lcode,
-    ///     Some(RomFormat::Edge),
+    ///     Some(RomFormat::Edges),
     /// );
     ///
-    /// let str = result.to_output_string();
+    /// let str = result.to_output_string().unwrap();
     ///
     /// println!("{str}");
     /// ```
@@ -908,9 +914,11 @@ impl Uroman {
     ///
     /// # Example
     /// ```
+    /// # use uroman::Uroman;
+    /// # let uroman = Uroman::new();
     /// let lcode = None;
     /// let result = uroman.romanize_with_format(
-    ///     s,
+    ///     "ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ",
     ///     lcode,
     ///     None, // `None` defaults to `RomFormat::Str`.
     ///     // RomFormat::Str,
