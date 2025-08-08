@@ -67,7 +67,7 @@ struct Cli {
     #[arg(short, long, value_name = "FILE")]
     output_filename: Option<PathBuf>,
 
-    /// ISO 639-3 language code (e.g., 'eng').
+    /// [ISO 639-3 language code](https://www.loc.gov/standards/iso639-2/php/code_list.php) (e.g., 'eng').
     #[arg(short = 'l', long)]
     lcode: Option<String>,
 

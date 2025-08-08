@@ -93,7 +93,7 @@ hallo world
 Here is a basic example to get you started.
 
 ```bash
-cargo add uroman
+cargo add uroman --no-default-features
 ```
 
 ```rust

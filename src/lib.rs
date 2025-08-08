@@ -783,6 +783,21 @@ impl Uroman {
     }
 
     /// Romanizes a given string.
+    ///
+    /// # Arguments
+    ///
+    /// lcode: [ISO 639-3 language code](https://www.loc.gov/standards/iso639-2/php/code_list.php)
+    /// (e.g., eng, jpn, hin, ara, zho)
+    ///
+    /// # Example
+    /// ```
+    /// let lcode = None;
+    /// let result = uroman.romanize_string::<rom_format::Str>("ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ", lcode);
+    ///
+    /// let str = result.to_output_string();
+    ///
+    /// println!("{str}");
+    /// ```
     pub fn romanize_string<F: RomFormatType + 'static>(
         &self,
         s: &str,
@@ -829,6 +844,21 @@ impl Uroman {
     }
 
     /// Decodes Unicode escape sequences before performing romanization.
+    ///
+    /// # Arguments
+    ///
+    /// lcode: [ISO 639-3 language code](https://www.loc.gov/standards/iso639-2/php/code_list.php)
+    /// (e.g., eng, jpn, hin, ara, zho)
+    ///
+    /// # Example
+    /// ```
+    /// let lcode = None;
+    /// let result = uroman.romanize_escaped::<rom_format::Str>("ᚺᚨᛚᛚᛟ ᚹᛟᚱᛚᛞ", lcode);
+    ///
+    /// let str = result.to_output_string();
+    ///
+    /// println!("{str}");
+    /// ```
     pub fn romanize_escaped<F: RomFormatType + 'static>(
         &self,
         s: &str,
@@ -838,6 +868,26 @@ impl Uroman {
         self.romanize_string::<F>(s.as_str(), lcode)
     }
 
+    /// Decodes Unicode escape sequences and then romanizes the string using the specified `RomFormat`.
+    ///
+    /// # Arguments
+    ///
+    /// lcode: [ISO 639-3 language code](https://www.loc.gov/standards/iso639-2/php/code_list.php)
+    /// (e.g., eng, jpn, hin, ara, zho)
+    ///
+    /// # Example
+    /// ```
+    /// let lcode = None;
+    /// let result = uroman.romanize_with_format(
+    ///     s,
+    ///     lcode,
+    ///     Some(RomFormat::Edge),
+    /// );
+    ///
+    /// let str = result.to_output_string();
+    ///
+    /// println!("{str}");
+    /// ```
     pub fn romanize_escaped_with_format(
         &self,
         s: &str,
@@ -848,6 +898,28 @@ impl Uroman {
         self.romanize_with_format(&s, lcode, rom_format)
     }
 
+
+    /// Romanizes a given string using `RomFormat`.
+    ///
+    /// # Arguments
+    ///
+    /// lcode: [ISO 639-3 language code](https://www.loc.gov/standards/iso639-2/php/code_list.php)
+    /// (e.g., eng, jpn, hin, ara, zho)
+    ///
+    /// # Example
+    /// ```
+    /// let lcode = None;
+    /// let result = uroman.romanize_with_format(
+    ///     s,
+    ///     lcode,
+    ///     None, // `None` defaults to `RomFormat::Str`.
+    ///     // RomFormat::Str,
+    /// );
+    ///
+    /// let str = result.to_output_string().unwrap();
+    ///
+    /// println!("{str}");
+    /// ```
     pub fn romanize_with_format(
         &self,
         s: &str,
@@ -871,6 +943,11 @@ impl Uroman {
     ///
     /// This method efficiently processes large amounts of text by reading from a buffered
     /// reader and writing to a writer without loading the entire content into memory.
+    ///
+    /// # Arguments
+    ///
+    /// lcode: [ISO 639-3 language code](https://www.loc.gov/standards/iso639-2/php/code_list.php)
+    /// (e.g., eng, jpn, hin, ara, zho)
     ///
     /// # Errors
     ///
