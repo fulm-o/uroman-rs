@@ -51,7 +51,6 @@ static HANGUL_TAILS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
         .collect()
 });
 
-
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum RomFormat {
     #[default]
@@ -119,7 +118,9 @@ impl From<RomanizationResult> for Result<String, RomanizationError> {
     fn from(res: RomanizationResult) -> Self {
         match res {
             RomanizationResult::Edges(edges) => Ok(serde_json::to_string_pretty(&edges)?),
-            _ => Err(RomanizationError::InternalError("Mismatched result".to_string())),
+            _ => Err(RomanizationError::InternalError(
+                "Mismatched result".to_string(),
+            )),
         }
     }
 }
@@ -435,10 +436,9 @@ impl Uroman {
 
                     let re1 =
                         Regex::new(&format!(r"([cfghkmnqrstxy]?y)({vowels_regex2})-?$")).unwrap();
-                    let re2 = Regex::new(&format!(
-                        r"([bcdfghjklmnpqrstvwxyz]+)({vowels_regex1})-?$"
-                    ))
-                    .unwrap();
+                    let re2 =
+                        Regex::new(&format!(r"([bcdfghjklmnpqrstvwxyz]+)({vowels_regex1})-?$"))
+                            .unwrap();
 
                     Some((re1, re2))
                 } else {
@@ -904,7 +904,6 @@ impl Uroman {
         self.romanize_with_format(&s, lcode, rom_format)
     }
 
-
     /// Romanizes a given string using `RomFormat`.
     ///
     /// # Arguments
@@ -940,7 +939,7 @@ impl Uroman {
             RomFormat::Str => {
                 let str = self.romanize_string::<rom_format::Str>(s, lcode);
                 RomanizationResult::Str(str.to_output_string())
-            },
+            }
             RomFormat::Edges => self.romanize_string::<rom_format::Edges>(s, lcode).result,
             RomFormat::Alts => self.romanize_string::<rom_format::Alts>(s, lcode).result,
             RomFormat::Lattice => self.romanize_string::<rom_format::Lattice>(s, lcode).result,

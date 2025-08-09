@@ -1,7 +1,7 @@
 use crate::decompositions::DECOMPOSITIONS;
 use crate::edge::{Edge, NumDataUpdates};
 use crate::rom_rule::RomRule;
-use crate::{rom_format, AbugidaCacheEntry, Uroman};
+use crate::{AbugidaCacheEntry, Uroman, rom_format};
 use num_rational::Ratio;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -523,11 +523,12 @@ impl<'a> Lattice<'a> {
                 for &end2 in &sorted_ends {
                     // Python: if end2 <= end:
                     if end2 <= end
-                        && let Some(edges_for_span) = self.edge_lattice.get(&(start2, end2)) {
-                            result.extend(edges_for_span.iter().cloned());
-                        } else {
-                            break;
-                        }
+                        && let Some(edges_for_span) = self.edge_lattice.get(&(start2, end2))
+                    {
+                        result.extend(edges_for_span.iter().cloned());
+                    } else {
+                        break;
+                    }
                 }
             }
         }
@@ -680,7 +681,11 @@ impl<'a> Lattice<'a> {
                 && !matches!(tag, "<super>" | "<sub>" | "<noBreak>" | "<compat>")
                 && !decomp_s.is_empty()
             {
-                rom = Some(self.uroman.romanize_string::<rom_format::Str>(decomp_s, None).to_output_string());
+                rom = Some(
+                    self.uroman
+                        .romanize_string::<rom_format::Str>(decomp_s, None)
+                        .to_output_string(),
+                );
             }
 
             if rom.is_some() && self.char_has_numeric_value(target_char) {

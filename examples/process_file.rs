@@ -1,6 +1,11 @@
 extern crate uroman;
 
-use std::{env, fs::File, io::{self, BufReader}, process};
+use std::{
+    env,
+    fs::File,
+    io::{self, BufReader},
+    process,
+};
 
 use uroman::{RomFormat, Uroman};
 
@@ -29,13 +34,13 @@ fn main() {
 
     let reader = BufReader::new(file);
 
-    if let Err(e)= uroman.romanize_file(
+    if let Err(e) = uroman.romanize_file(
         reader,
         io::stdout().lock(),
         None,
         RomFormat::Str,
-        None, // max_lines
-        true, // decode_unicode
+        None,  // max_lines
+        true,  // decode_unicode
         false, // silent
     ) {
         eprintln!("{e}")

@@ -1,6 +1,6 @@
 extern crate uroman;
 
-use uroman::{rom_format, RomFormat, Uroman};
+use uroman::{RomFormat, Uroman, rom_format};
 
 fn main() {
     let uroman = Uroman::new();
@@ -9,7 +9,8 @@ fn main() {
     let lcode = None;
 
     // Str output
-    let result = uroman.romanize_string::<rom_format::Str>(s, lcode)
+    let result = uroman
+        .romanize_string::<rom_format::Str>(s, lcode)
         .to_output_string();
 
     let result_f = uroman.romanize_with_format(
@@ -26,15 +27,15 @@ fn main() {
     println!("{result}");
 
     // Lattice output
-    let result = uroman.romanize_string::<rom_format::Lattice>(s, lcode)
+    let result = uroman
+        .romanize_string::<rom_format::Lattice>(s, lcode)
         .to_output_string()
         .unwrap();
 
-    let result_f = uroman.romanize_with_format(
-        s,
-        lcode,
-        Some(RomFormat::Lattice),
-    ).to_output_string().unwrap();
+    let result_f = uroman
+        .romanize_with_format(s, lcode, Some(RomFormat::Lattice))
+        .to_output_string()
+        .unwrap();
 
     assert_eq!(result, result_f);
 

@@ -1,4 +1,4 @@
-use uroman::{rom_format, Uroman};
+use uroman::{Uroman, rom_format};
 
 #[track_caller]
 fn assert_romanizes_to_str(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
@@ -7,15 +7,17 @@ fn assert_romanizes_to_str(uroman: &Uroman, input: &str, lcode: Option<&str>, ex
     assert_eq!(result.to_output_string(), expected_str);
 }
 
-
 #[track_caller]
-fn assert_romanizes_to_str_with_decode(uroman: &Uroman, input: &str, lcode: Option<&str>, expected_str: &str) {
-    let result = uroman
-        .romanize_escaped::<rom_format::Str>(input, lcode);
+fn assert_romanizes_to_str_with_decode(
+    uroman: &Uroman,
+    input: &str,
+    lcode: Option<&str>,
+    expected_str: &str,
+) {
+    let result = uroman.romanize_escaped::<rom_format::Str>(input, lcode);
 
     assert_eq!(result.to_output_string(), expected_str);
 }
-
 
 #[test]
 fn test_simple_romanization() {

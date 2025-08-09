@@ -1,36 +1,32 @@
-# uroman-rs
-
-[![Crates.io](https://img.shields.io/crates/v/uroman.svg)](https://crates.io/crates/uroman)
-[![CI](https://github.com/fulm-o/uroman-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/fulm-o/uroman-rs/actions)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-
-A blazingly fast, self-contained Rust reimplementation of the `uroman` universal romanizer.
+<div align="center">
+  <h1>uroman-rs</h1>
+  <p>
+    A blazingly fast, self-contained Rust reimplementation of the <code>uroman</code> universal romanizer.
+  </p>
+  <p>
+    <a href="https://crates.io/crates/uroman"><img src="https://img.shields.io/crates/v/uroman.svg" alt="Crates.io"></a>
+    <a href="https://github.com/fulm-o/uroman-rs/actions/workflows/rust.yml"><img src="https://github.com/fulm-o/uroman-rs/actions/workflows/rust.yml/badge.svg" alt="CI"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
+  </p>
+</div>
 
 ## Overview
 
 `uroman-rs` is a complete rewrite of the original `uroman` (Universal Romanizer) in Rust. It provides high-speed, accurate romanization for a vast number of languages and writing systems, faithfully reproducing the behavior of the original implementation.
 
-This project is licensed under the Apache License 2.0. As a reimplementation, it respects and includes the license of the original `uroman` software. For full details, please refer to the [License section](#license) below.
+As a reimplementation, it is designed to be a drop-in replacement that passes the original's comprehensive test suite. This means its romanization logic, including its strengths and limitations, is identical to the original. For effective use, we recommend reviewing the original authors' documentation on [Reversibility](https://github.com/isi-nlp/uroman?tab=readme-ov-file#reversibility) and [Known Limitations](https://github.com/isi-nlp/uroman?tab=readme-ov-file#limitations).
 
-## ✨ Features
+In the same spirit of fidelity, this project respects the licensing of the original `uroman` software. `uroman-rs` is licensed under the Apache License 2.0, and includes the original's license as required. For full details, please refer to the [License section](#license-and-acknowledgements).
 
-*   **🚀 Blazing Fast Performance**: Approximately **22 times faster** than the standard Python version, making it ideal for large-scale data processing. (See [Benchmark](#-benchmark))
-*   **📦 Self-Contained**: A Pure Rust implementation with no dependency on external runtimes like Python or Perl. It compiles to a single, portable binary.
-*   **🎯 High Fidelity**: A true drop-in replacement for the original `uroman`, passing its comprehensive test suite.
-*   **🧰 Rich Output Formats**: Supports multiple output formats, including simple strings (`str`), and structured JSON data with character offsets (`edges`), alternatives (`alts`), and all lattice paths (`lattice`).
-*   **🔧 Versatile**: Use it as a standalone Command-Line Interface (CLI) tool or as a library in your own Rust applications.
+## Features
 
-## 📝 A Note on Romanization Logic and Limitations
+*   **Performance**: Achieves approximately **22x the speed** of the standard Python version, making it ideal for large-scale data processing. (See [Benchmark](#benchmark))
+*   **Self-Contained**: A pure Rust implementation with no dependency on external runtimes. It compiles to a single, portable binary.
+*   **High Fidelity**: Faithfully reproduces the behavior of the original `uroman` and passes its test suite.
+*   **Rich Output Formats**: Supports multiple output formats, including simple strings (`str`) and structured JSON data (`edges`, `alts`, `lattice`).
+*   **Versatile**: Can be used as a standalone Command-Line Interface (CLI) tool or as a library in your Rust applications.
 
-`uroman-rs` is a high-fidelity reimplementation of the original `uroman` and passes its comprehensive test suite. This means its romanization logic, including its strengths and limitations, is identical to the original implementation created by NLP researchers.
-
-The original authors provide excellent documentation on the specific behaviors of the romanizer. To use `uroman-rs` effectively, we recommend reviewing these details, especially concerning:
-
-*   **[Reversibility](https://github.com/isi-nlp/uroman?tab=readme-ov-file#reversibility)**: Details on whether the romanization process can be reliably reversed.
-*   **[Known Limitations](https://github.com/isi-nlp/uroman?tab=readme-ov-file#limitations)**: Important information about cases where `uroman` may not perform as expected.
-
-
-## 📦 Installation
+## Installation
 
 The `uroman-rs` project is available as a crate named uroman. You can use it both as a command-line tool and as a library in your Rust projects.
 
@@ -46,13 +42,14 @@ This will install the executable as `uroman-rs` on your system.
 
 ### As a Library
 
-To use `uroman` as a library, add it to your project's dependencies.
+Add `uroman-rs` to your project's Cargo.toml.
+For library usage, it's recommended to disable default features to avoid pulling in CLI-specific dependencies.
 
 ```bash
-cargo add uroman
+cargo add uroman --no-default-features
 ```
 
-## ⚙️ Usage
+## Usage
 
 ### Command-Line Interface (CLI)
 
@@ -65,7 +62,6 @@ See examples of how various scripts are romanized.
 uroman-rs --sample
 ```
 
-
 **View all options:**
 
 Display the help message for a full list of commands and flags.
@@ -73,8 +69,7 @@ Display the help message for a full list of commands and flags.
 uroman-rs --help
 ```
 
-
-**Use in REPL:**
+**Use in REPL mode:**
 
 Run `uroman-rs` without any arguments to process input line by line. Press `Ctrl+D` to exit.
 
@@ -88,17 +83,10 @@ hallo world
 ```
 
 
-### As a Library
-
-Here is a basic example to get you started.
-
-```bash
-cargo add uroman --no-default-features
-```
+### Library
 
 ```rust
-// `Uroman::new()` is an infallible operation.
-// It doesn't return a `Result`, so no error handling is needed.
+// Uroman::new() is infallible and does not return a `Result`.
 let uroman = Uroman::new();
 
 let romanized_string/*: String*/ = uroman.romanize_string::<rom_format::Str>(
@@ -109,26 +97,19 @@ let romanized_string/*: String*/ = uroman.romanize_string::<rom_format::Str>(
 assert_eq!(romanized_string, "✨yuuroman✨");
 println!("{romanized_string}");
 ```
+For more advanced examples, please see the examples/ directory.
 
-For more advanced use cases, including file processing and generating detailed JSON output, please see the code in the [`examples/`](./examples) directory.
+## Benchmark
 
+Performance was measured against the original Python implementation using [`hyperfine`](https://github.com/sharkdp/hyperfine).
 
-## 🚀 Benchmark
-
-`uroman-rs` offers a dramatic performance improvement over the standard Python implementation. To provide a fair and robust comparison, we used the [`hyperfine`](https://github.com/sharkdp/hyperfine) benchmarking tool to measure the total execution time for a common task.
-
-### Test Environment
-*   **CPU**: [Intel(R) Core(TM) i7-14700]
-*   **OS**: [WSL2 Ubuntu 24.04]
-*   **Tool**: `hyperfine` v1.18.0
 *   **Test File**: `multi-script.txt` from the original `uroman` repository.
+*   **Environment**: Intel Core i7-14700, WSL2 (Ubuntu 24.04)
 
-### Results
-
-| Implementation                | Mean Time (± σ)       | Performance                   |
-|-------------------------------|-----------------------|-------------------------------|
-| **`uroman-rs` (This project)**| **99.3 ms ± 3.6 ms**  | **~22x Faster**               |
-| `uroman.py` (via `uv run`)    | **2180 ms ± 26 ms** | Baseline                      |
+| Implementation                | Mean Time (± σ)       | Relative Performance |
+|-------------------------------|-----------------------|----------------------|
+| **`uroman-rs` (This project)**| **99.3 ms ± 3.6 ms**  | **~22.0x faster**     |
+| `uroman.py` (via `uv run`)    | 2180 ms ± 26 ms       | Baseline             |
 
 
 ## License

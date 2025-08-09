@@ -5,9 +5,8 @@ use std::sync::{LazyLock, OnceLock};
 
 use crate::Value;
 
-static HAS_ESCAPE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})").unwrap()
-});
+static HAS_ESCAPE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})").unwrap());
 
 /// Captures the value associated with a `::slot` in a line.
 ///

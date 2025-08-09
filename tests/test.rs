@@ -3,9 +3,8 @@ use std::fs::{self, File};
 use std::process::Command;
 
 fn assert_uroman_output(input_path: &str, expected_output_path: &str) {
-    let expected_output = fs::read_to_string(expected_output_path).unwrap_or_else(|_| {
-        panic!("could not read expected output file: {expected_output_path}")
-    });
+    let expected_output = fs::read_to_string(expected_output_path)
+        .unwrap_or_else(|_| panic!("could not read expected output file: {expected_output_path}"));
 
     let expected_output_normalized = expected_output.replace("\r\n", "\n");
 

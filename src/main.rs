@@ -1,15 +1,14 @@
 //! Command-line interface for uroman-rs.
 
-use rustyline::error::ReadlineError;
+use clap::{Parser, ValueEnum};
 use rustyline::DefaultEditor;
-use clap::Parser;
-use unicode_width::UnicodeWidthStr;
-use std::{fs, time};
+use rustyline::error::ReadlineError;
 use std::io::{self, BufRead, BufReader, BufWriter, IsTerminal, Write};
 use std::path::PathBuf;
+use std::{fs, time};
 use thiserror::Error;
-use clap::ValueEnum;
-use uroman::{rom_format, RomFormat, RomanizationError, Uroman};
+use unicode_width::UnicodeWidthStr;
+use uroman::{RomFormat, RomanizationError, Uroman, rom_format};
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
 enum CliRomFormat {
@@ -50,10 +49,7 @@ enum UromanError {
 }
 
 #[derive(Parser, Debug)]
-#[command(
-    author,
-    version,
-)]
+#[command(author, version)]
 struct Cli {
     /// Direct text input to be romanized.
     #[arg(value_name = "DIRECT_INPUT")]
@@ -109,17 +105,21 @@ fn run() -> Result<(), UromanError> {
     let cli = Cli::parse();
     let uroman = Uroman::new();
 
-    if cli.direct_input.is_empty() && cli.input_filename.is_none() && !cli.sample
-        && std::io::stdin().is_terminal() {
-            run_repl(&uroman, &cli)?;
-            return Ok(());
-        }
+    if cli.direct_input.is_empty()
+        && cli.input_filename.is_none()
+        && !cli.sample
+        && std::io::stdin().is_terminal()
+    {
+        run_repl(&uroman, &cli)?;
+        return Ok(());
+    }
 
     if cli.sample
         && cli.direct_input.is_empty()
         && cli.input_filename.is_none()
         && cli.output_filename.is_none()
-        && !cli.silent {
+        && !cli.silent
+    {
         show_samples(&uroman)?;
         return Ok(());
     }
@@ -137,7 +137,9 @@ fn run() -> Result<(), UromanError> {
     writer.flush()?;
 
     if cli.sample {
-        println!("Note: The --sample option was ignored because input was provided via other flags.");
+        println!(
+            "Note: The --sample option was ignored because input was provided via other flags."
+        );
     }
 
     Ok(())
@@ -152,28 +154,16 @@ fn process_direct_input(
     let lcode = cli.lcode.as_deref();
     for s in &cli.direct_input {
         let result = if !cli.decode_unicode {
-            uroman.romanize_with_format(
-                s,
-                lcode,
-                rom_format,
-            )
+            uroman.romanize_with_format(s, lcode, rom_format)
         } else {
-            uroman.romanize_escaped_with_format(
-                s,
-                lcode,
-                rom_format,
-            )
+            uroman.romanize_escaped_with_format(s, lcode, rom_format)
         };
         writeln!(writer, "{}", result.to_output_string()?)?;
     }
     Ok(())
 }
 
-fn process_stream(
-    uroman: &Uroman,
-    cli: &Cli,
-    writer: &mut dyn Write,
-) -> Result<(), UromanError> {
+fn process_stream(uroman: &Uroman, cli: &Cli, writer: &mut dyn Write) -> Result<(), UromanError> {
     let reader = get_reader(&cli.input_filename)?;
 
     uroman.romanize_file(
@@ -214,7 +204,6 @@ fn get_writer(path: &Option<PathBuf>) -> Result<Box<dyn Write>, UromanError> {
     }
 }
 
-
 fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
     let mut rl = DefaultEditor::new()?;
 
@@ -227,8 +216,8 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
     };
 
     if let Some(path) = history_path()
-        && rl.load_history(&path).is_err() {
-        }
+        && rl.load_history(&path).is_err()
+    {}
 
     let lcode = cli.lcode.as_deref();
 
@@ -247,7 +236,10 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
                     continue;
                 }
 
-                match uroman.romanize_with_format(&line, lcode, Some(cli.rom_format.into())).to_output_string() {
+                match uroman
+                    .romanize_with_format(&line, lcode, Some(cli.rom_format.into()))
+                    .to_output_string()
+                {
                     Ok(output) => println!("{output}"),
                     Err(e) => eprintln!("Error formatting output: {e}"),
                 }
@@ -268,13 +260,13 @@ fn run_repl(uroman: &Uroman, cli: &Cli) -> Result<(), UromanError> {
     }
 
     if let Some(path) = history_path()
-        && let Err(err) = rl.save_history(&path) {
-            eprintln!("Warning: could not save history to {path:?}: {err}");
-        }
+        && let Err(err) = rl.save_history(&path)
+    {
+        eprintln!("Warning: could not save history to {path:?}: {err}");
+    }
 
     Ok(())
 }
-
 
 fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
     println!("Running sample conversions with uroman-rs:");
@@ -315,8 +307,10 @@ fn show_samples(uroman: &Uroman) -> Result<(), UromanError> {
 
     for (lang_code, text) in samples.iter() {
         let start = time::Instant::now();
-        let romanized = uroman.romanize_string::<rom_format::Str>(text, Some(lang_code)).to_output_string();
-        let duration  = start.elapsed();
+        let romanized = uroman
+            .romanize_string::<rom_format::Str>(text, Some(lang_code))
+            .to_output_string();
+        let duration = start.elapsed();
         total_duration_ns += duration.as_nanos();
 
         let current_width = UnicodeWidthStr::width(*text);
