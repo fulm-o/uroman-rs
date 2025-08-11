@@ -76,6 +76,19 @@ fn test_kanji_number() {
 }
 
 #[test]
+fn test_fractions() {
+    let uroman = Uroman::new();
+
+    assert_romanizes_to_str(&uroman, "½", None, "1/2");
+    assert_romanizes_to_str(&uroman, "¼", None, "1/4");
+    assert_romanizes_to_str(&uroman, "¾", None, "3/4");
+    assert_romanizes_to_str(&uroman, "23½", None, "23 1/2");
+    assert_romanizes_to_str(&uroman, "1¼", None, "1 1/4");
+    assert_romanizes_to_str(&uroman, "abc½", None, "abc1/2");
+    assert_romanizes_to_str(&uroman, "½¼", None, "1/2 1/4");
+}
+
+#[test]
 fn test_deu() {
     let uroman = Uroman::new();
 

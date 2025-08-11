@@ -159,6 +159,7 @@ enum Value {
     Int(i64),
     Float(f64),
     String(String),
+    Array(Vec<Value>),
 }
 
 /// Represents a script with its properties.
@@ -197,7 +198,7 @@ pub struct Uroman {
     scripts: HashMap<String, Script>,
     dict_bool: HashMap<(String, String), bool>,
     dict_str: HashMap<(String, String), String>,
-    num_props: HashMap<char, HashMap<String, Value>>,
+    num_props: HashMap<String, HashMap<String, Value>>,
     percentage_markers: HashSet<String>,
     fraction_connectors: HashSet<String>,
     plus_signs: HashSet<String>,
@@ -291,39 +292,55 @@ impl Uroman {
     }
 
     /// Loads numerical properties from a JSONL file (e.g., NumProps.jsonl).
-    fn load_num_props(&mut self, file: &'static str) {
-        for line in file.lines() {
+    fn load_num_props(&mut self, file_content: &'static str) {
+        for line in file_content.lines() {
             if line.starts_with('#') || line.trim().is_empty() {
                 continue;
             }
 
-            let json: JsonValue = serde_json::from_str(line).expect("invalid JSON map");
+            let json: JsonValue = serde_json::from_str(line).unwrap();
+
             if let Some(obj) = json.as_object()
-                && let Some(txt_val) = obj.get("txt")
-                && let Some(txt) = txt_val.as_str()
-                && let Some(key_char) = txt.chars().next()
-            {
-                let mut num_prop_map = HashMap::new();
-                for (key, val) in obj {
-                    match val {
-                        JsonValue::Number(n) => {
-                            if n.is_i64() {
-                                num_prop_map.insert(key.clone(), Value::Int(n.as_i64().unwrap()));
-                            } else if n.is_f64() {
-                                num_prop_map.insert(key.clone(), Value::Float(n.as_f64().unwrap()));
-                            }
+                && let Some(txt) = obj.get("txt").and_then(|v| v.as_str()) {
+                    let txt_key = txt.to_string();
+
+                    for bool_key in ["is-large-power"] {
+                        if obj.get(bool_key).and_then(|v| v.as_bool()).unwrap_or(false) {
+                            self.dict_bool.insert((bool_key.to_string(), txt_key.clone()), true);
                         }
-                        JsonValue::String(s) => {
-                            num_prop_map.insert(key.clone(), Value::String(s.clone()));
-                        }
-                        JsonValue::Bool(b) => {
-                            num_prop_map.insert(key.clone(), Value::Int(if *b { 1 } else { 0 }));
-                        }
-                        _ => {}
                     }
+
+                    let mut prop_map: HashMap<String, Value> = HashMap::new();
+                    for (key, val) in obj {
+                        match val {
+                            JsonValue::Number(n) => {
+                                if let Some(i) = n.as_i64() {
+                                    prop_map.insert(key.clone(), Value::Int(i));
+                                } else if let Some(f) = n.as_f64() {
+                                    prop_map.insert(key.clone(), Value::Float(f));
+                                }
+                            }
+                            JsonValue::String(s) => {
+                                prop_map.insert(key.clone(), Value::String(s.clone()));
+                            }
+                            JsonValue::Bool(b) => {
+                                prop_map.insert(key.clone(), Value::Int(if *b { 1 } else { 0 }));
+                            }
+                            JsonValue::Array(arr) => {
+                                let mut values = Vec::new();
+                                for item in arr {
+                                    if let Some(i) = item.as_i64() {
+                                        values.push(Value::Int(i));
+                                    }
+                                }
+                                prop_map.insert(key.clone(), Value::Array(values));
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    self.num_props.insert(txt_key, prop_map);
                 }
-                self.num_props.insert(key_char, num_prop_map);
-            }
         }
     }
 

@@ -1,7 +1,7 @@
 [package]
 name = "uroman"
 authors = ["fulm-o <fulmlumo@gmail.com>"]
-version = "0.4.2"
+version = "0.4.3"
 edition = "2024"
 repository = "https://github.com/fulm-o/uroman-rs"
 description = "A blazingly fast, self-contained Rust reimplementation of the uroman universal romanizer."

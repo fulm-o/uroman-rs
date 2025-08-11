@@ -465,14 +465,12 @@ impl<'a> Lattice<'a> {
             let orig_char = self.s_chars[start];
             let (rom, edge_annotation) = self.get_fallback_rom_and_annot(orig_char, start, end);
 
-            // if !rom.is_empty() {
             self.add_edge(Edge::new_regular(
                 start,
                 end,
                 rom.clone(),
                 edge_annotation.clone(),
             ));
-            // }
         }
     }
 
@@ -1074,7 +1072,7 @@ impl<'a> Lattice<'a> {
         active_edges = self.apply_g5_fractions_and_percentages(active_edges);
 
         self.apply_g6_plus_minus_signs(&active_edges);
-        self.apply_f1_final_adjustments(&mut active_edges);
+        self.apply_f1_final_adjustments();
         self.deactivate_exceptional_singles(&mut active_edges);
         self.add_fallback_unicode_numbers();
     }
@@ -1555,19 +1553,46 @@ impl<'a> Lattice<'a> {
     }
 
     #[inline]
-    fn apply_f1_final_adjustments(&mut self, active_edges: &mut [Edge]) {
-        for edge in active_edges.iter_mut() {
-            if !STARTS_WITH_DIGIT_RE.is_match(edge.txt()) {
-                continue;
-            }
+    fn apply_f1_final_adjustments(&mut self) {
+        let mut edges_to_add: Vec<Edge> = Vec::new();
+        let mut edges_to_deactivate: Vec<Edge> = Vec::new();
 
-            if let Some(left_edge) = self.best_left_neighbor_edge(edge.start(), false)
-                && ENDS_WITH_DIGIT_RE.is_match(left_edge.txt())
-            {
-                let has_fraction = edge.get_num_data().is_some_and(|d| d.fraction.is_some());
-                let separator = if has_fraction { " " } else { "·" };
-                edge.get_data_mut().txt.insert_str(0, separator);
+        for (_, left_edges) in self.edge_lattice.iter() {
+            for left_edge in left_edges.iter() {
+                if !ENDS_WITH_DIGIT_RE.is_match(left_edge.txt()) {
+                    continue;
+                }
+
+                if let Some(right_link_ends) = self.right_links.get(&left_edge.end()) {
+                    for right_end in right_link_ends {
+                        if let Some(right_edges) = self.edge_lattice.get(&(left_edge.end(), *right_end)) {
+                            for right_edge in right_edges {
+                                if right_edge.is_numeric() && STARTS_WITH_DIGIT_RE.is_match(right_edge.txt()) {
+                                    let mut new_edge = right_edge.clone();
+                                    let has_fraction = new_edge.get_num_data().is_some_and(|d| d.fraction.is_some());
+                                    let separator = if has_fraction { " " } else { "·" };
+                                    new_edge.get_data_mut().txt.insert_str(0, separator);
+
+                                    edges_to_add.push(new_edge);
+                                    edges_to_deactivate.push(right_edge.clone());
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        for edge_to_deactivate in edges_to_deactivate {
+            if let Some(edges) = self.edge_lattice.get_mut(&(edge_to_deactivate.start(), edge_to_deactivate.end()))
+                && let Some(mut e) = edges.take(&edge_to_deactivate) {
+                    e.set_active(false);
+                    edges.insert(e);
+                }
+        }
+
+        for new_edge in edges_to_add {
+            self.add_edge(new_edge);
         }
     }
 
@@ -2163,22 +2188,33 @@ impl<'a> Lattice<'a> {
         result
     }
 
-    // pub fn print_all_edges_for_debug(&self, step_name: &str) {
-    //     println!("\n--- Rust: After {} ---", step_name);
+    pub fn _print_all_edges_for_debug(&self, step_name: &str) {
+        println!("\n--- Rust: After {step_name} ---");
 
-    //     let mut all_edges: Vec<Edge> = self.edge_lattice.values().flatten().cloned().collect();
+        let mut all_edges: Vec<Edge> = self.edge_lattice.values().flatten().cloned().collect();
 
-    //     all_edges.sort_by(|a, b| a.cmp_for_debug(b));
+        all_edges.sort_by(|a, b| {
+            let this = &a;
+            {
+                let this = &this;
+                let data = this.get_data();
+                (data.start, data.end, &data.txt, &data.r#type)
+            }.cmp(&{
+                let this = &b;
+                let data = this.get_data();
+                (data.start, data.end, &data.txt, &data.r#type)
+            })
+        });
 
-    //     if all_edges.is_empty() {
-    //         println!("(No edges in lattice)");
-    //         return;
-    //     }
+        if all_edges.is_empty() {
+            println!("(No edges in lattice)");
+            return;
+        }
 
-    //     for edge in all_edges {
-    //         println!("{:?}", edge);
-    //     }
-    // }
+        for edge in all_edges {
+            println!("{edge:?}");
+        }
+    }
 }
 
 fn is_power_of_10(mut n: i64) -> bool {

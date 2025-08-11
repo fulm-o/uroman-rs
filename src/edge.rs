@@ -82,7 +82,15 @@ impl Edge {
 
     /// Creates an initial numeric edge from `uroman.num_props`.
     pub fn new_numeric(start: usize, end: usize, char: char, uroman: &Uroman) -> Option<Self> {
-        let props_map = uroman.num_props.get(&char)?;
+        let props_map = uroman.num_props.get(&char.to_string())?;
+
+        let rom_text = props_map
+            .get("rom")
+            .and_then(|v| match v {
+                Value::String(s) => Some(s.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| char.to_string());
 
         let value = props_map.get("value").and_then(|v| match v {
             Value::Int(i) => Some(*i as f64),
@@ -94,6 +102,17 @@ impl Edge {
             Value::String(s) => s
                 .split_once('/')
                 .and_then(|(num, den)| Some(Ratio::new(num.parse().ok()?, den.parse().ok()?))),
+            Value::Array(arr) if arr.len() == 2 => {
+                if let (Some(Value::Int(num)), Some(Value::Int(den))) = (arr.first(), arr.get(1)) {
+                    if *den != 0 {
+                        Some(Ratio::new(*num, *den))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            },
             _ => None,
         });
 
@@ -125,11 +144,11 @@ impl Edge {
             _ => None,
         });
 
-        let mut edge = Edge::Numeric {
+        let edge = Edge::Numeric {
             data: EdgeData {
                 start,
                 end,
-                txt: "".to_string(),
+                txt: rom_text,
                 r#type,
             },
             num_data: NumData {
@@ -144,7 +163,6 @@ impl Edge {
                 ..Default::default()
             },
         };
-        edge.update(NumDataUpdates::default());
         Some(edge)
     }
 
