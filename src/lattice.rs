@@ -1,5 +1,5 @@
 use crate::decompositions::DECOMPOSITIONS;
-use crate::edge::{Edge, NumDataUpdates};
+use crate::edge::{Edge, EdgeData, NumData, NumDataUpdates};
 use crate::rom_rule::RomRule;
 use crate::{AbugidaCacheEntry, Uroman, rom_format};
 use num_rational::Ratio;
@@ -370,32 +370,35 @@ impl<'a> Lattice<'a> {
         end: usize,
         simple_search: bool,
     ) -> Option<String> {
-        if end > self.max_vertex {
-            return None;
-        }
-
+        if end > self.max_vertex { return None; }
         let span_range = (start, end);
-
-        if !simple_search && let Some(cached_result) = self.simple_top_rom_cache.get(&span_range) {
-            return cached_result.clone();
-        }
+        if !simple_search
+            && let Some(cached_result) = self.simple_top_rom_cache.get(&span_range) {
+                return cached_result.clone();
+            }
 
         let sub: String = self.s_chars[start..end].iter().collect();
+        let Some(rules) = self.uroman.rom_rules.get(&sub) else {
+            if !simple_search { self.simple_top_rom_cache.insert(span_range, None); }
+            return None;
+        };
 
-        let mut best_rule: Option<&RomRule> = None;
-        if let Some(rules) = self.uroman.rom_rules.get(&sub) {
-            for rule in rules.iter() {
-                if self.cand_is_valid(rule, start, end) {
-                    if let Some(current_best) = best_rule {
-                        if rule.n_restr > current_best.n_restr {
-                            best_rule = Some(rule);
-                        }
-                    } else {
-                        best_rule = Some(rule);
+        let mut best_rule_with_t: Option<&RomRule> = None;
+        let mut best_rule_without_t: Option<&RomRule> = None;
+
+        for rule in rules.iter() {
+            if self.cand_is_valid(rule, start, end) {
+                if rule.t.is_some() {
+                    if best_rule_with_t.is_none() || rule.n_restr > best_rule_with_t.unwrap().n_restr {
+                        best_rule_with_t = Some(rule);
                     }
+                } else if best_rule_without_t.is_none() || rule.n_restr > best_rule_without_t.unwrap().n_restr {
+                    best_rule_without_t = Some(rule);
                 }
             }
         }
+
+        let best_rule = best_rule_with_t.or(best_rule_without_t);
 
         let best_cand = best_rule.and_then(|r| r.t.clone());
 
@@ -578,6 +581,18 @@ impl<'a> Lattice<'a> {
             .or(other_edge)
             .or(inactive_num_edge)
     }
+
+    // fn find_first_rom_candidate_with_target(&self, start: usize, end: usize) -> Option<String> {
+    //     let s = self.s_chars.get(start..end).map(|chars| chars.iter().collect::<String>())?;
+    //     let rules = self.uroman.rom_rules.get(&s)?;
+    //     for rule in rules {
+    //         if let Some(t) = &rule.t
+    //             && !t.is_empty() {
+    //                 return Some(t.clone());
+    //             }
+    //     }
+    //     None
+    // }
 
     pub fn best_right_neighbor_edge(&self, start: usize, skip_num_edge: bool) -> Option<Edge> {
         if let Some(ends) = self.right_links.get(&start) {
@@ -1069,7 +1084,8 @@ impl<'a> Lattice<'a> {
         active_edges = self.apply_g2_addition(active_edges);
         active_edges = self.apply_g3_large_power_multiplication(active_edges);
         active_edges = self.apply_g4_large_block_addition(active_edges);
-        active_edges = self.apply_g5_fractions_and_percentages(active_edges);
+
+        self.apply_fraction_and_percentage_patterns();
 
         self.apply_g6_plus_minus_signs(&active_edges);
         self.apply_f1_final_adjustments();
@@ -1411,104 +1427,108 @@ impl<'a> Lattice<'a> {
     }
 
     #[inline]
-    fn apply_g5_fractions_and_percentages(&mut self, prev_pass_edges: Vec<Edge>) -> Vec<Edge> {
-        let mut next_pass_edges = Vec::new();
-        let mut i = 0;
-        while i < prev_pass_edges.len() {
-            let left_edge = &prev_pass_edges[i];
-            let mut consumed = false;
-            if let Some(left_val) = left_edge
-                .value()
-                .filter(|v| v.fract() == 0.0)
-                .map(|v| v as i64)
-            {
-                let connector_start = left_edge.end();
+    fn apply_fraction_and_percentage_patterns(&mut self) {
+        let mut new_edges: Vec<Edge> = Vec::new();
+        let mut edges_to_deactivate: Vec<Edge> = Vec::new();
 
-                if left_val == 100 {
-                    for marker in &self.uroman.percentage_markers {
-                        let marker_chars: Vec<char> = marker.chars().collect();
-                        if self
-                            .s_chars
-                            .get(connector_start..connector_start + marker_chars.len())
-                            == Some(&marker_chars)
-                        {
-                            let number_start = connector_start + marker_chars.len();
-                            if let Some(right_edge) = prev_pass_edges
-                                .get(i + 1)
-                                .filter(|e| e.start() == number_start)
-                            {
-                                let new_edge = Edge::new_regular(
-                                    left_edge.start(),
-                                    right_edge.end(),
-                                    format!("{}%", right_edge.txt()),
-                                    "percentage".to_string(),
-                                );
-                                self.add_edge(new_edge.clone());
-                                next_pass_edges.push(new_edge);
-                                i += 2;
+        // Combine all markers and sort them by length descending.
+        // This ensures that longer markers (like "百分之") are matched before shorter ones.
+        let mut markers: Vec<_> = self.uroman.percentage_markers.iter()
+            .map(|m| (m, "percentage"))
+            .chain(self.uroman.fraction_connectors.iter().map(|c| (c, "fraction")))
+            .collect();
+        markers.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
+
+        // Use a label to efficiently skip to the next start position once a match is found.
+        'outer: for start in 0..self.s_chars.len() {
+            if let Some((marker_str, marker_type)) = markers.iter().find(|(m, _)| self.s_chars[start..].starts_with(&m.chars().collect::<Vec<_>>())) {
+
+                let marker_end = start + marker_str.chars().count();
+
+                // --- (Number) + Marker/Connector + (Number) ---
+                // Handles cases like "10 / 1", "十分之一", and the special case "百分之一".
+                // The `false` argument is crucial: it means "do NOT skip numeric edges".
+                if let Some(left_edge) = self.best_left_neighbor_edge(start, false)
+                    && let Some(right_edge) = self.best_right_neighbor_edge(marker_end, false) {
+                        // Ensure the pattern is contiguous and connected to the marker.
+                        if left_edge.end() != start || right_edge.start() != marker_end { continue; }
+
+                        if let (Some(left_val), Some(right_val)) = (
+                            left_edge.value().and_then(|v| if v.fract() == 0.0 { Some(v as i64) } else { None }),
+                            right_edge.value().and_then(|v| if v.fract() == 0.0 { Some(v as i64) } else { None })
+                        ) {
+                            let combined_start = left_edge.start();
+                            let combined_end = right_edge.end();
+                            let mut consumed = false;
+
+                            // if the left value is 100 and the connector is a fraction type (like "分之"),
+                            // treat it as a percentage. This correctly handles "百分之一".
+                            // This also handles explicit percentage markers like "100 % 1".
+                            if left_val == 100 && (*marker_type == "fraction" || *marker_type == "percentage") {
+                                new_edges.push(Edge::new_regular(combined_start, combined_end, format!("{right_val}%"), "percentage".to_string()));
                                 consumed = true;
-                                break;
+                            } else if *marker_type == "fraction" && left_val != 0 {
+                                // Standard fraction case like "十分之一".
+                                let fraction = Ratio::new(right_val, left_val);
+                                new_edges.push(Edge::Numeric {
+                                    data: EdgeData {
+                                        start: combined_start,
+                                        end: combined_end,
+                                        txt: format!("{right_val}/{left_val}"),
+                                        r#type: "fraction".to_string(),
+                                    },
+                                    num_data: NumData {
+                                        orig_txt: format!("{}/{}", right_val, left_val),
+                                        value: None,
+                                        fraction: Some(fraction),
+                                        script: right_edge.get_script(),
+                                        active: true,
+                                        ..Default::default()
+                                    },
+                                });
+                                consumed = true;
+                            }
+
+                            if consumed {
+                                edges_to_deactivate.push(left_edge.clone());
+                                edges_to_deactivate.push(right_edge.clone());
+                                // Since we found a match for this `start` position, continue to the next `start`.
+                                continue 'outer;
                             }
                         }
                     }
-                }
 
-                if !consumed {
-                    for connector in &self.uroman.fraction_connectors {
-                        let connector_chars: Vec<char> = connector.chars().collect();
-                        let number_start = connector_start + connector_chars.len();
-                        if self
-                            .s_chars
-                            .get(connector_start..connector_start + connector_chars.len())
-                            == Some(&connector_chars)
-                            && let Some(right_edge) = prev_pass_edges
-                                .get(i + 1)
-                                .filter(|e| e.start() == number_start)
-                            && let Some(right_val) = right_edge
-                                .value()
-                                .filter(|v| v.fract() == 0.0)
-                                .map(|v| v as i64)
-                            && left_val != 0
-                        {
-                            let fraction = Ratio::new(right_val, left_val);
-                            let combined_txt = format!("{right_val}/{left_val}");
-                            let combined_orig_txt = format!(
-                                "{}{}{}",
-                                left_edge.orig_txt(),
-                                connector,
-                                right_edge.orig_txt()
-                            );
-                            let mut new_edge = Edge::new_combined_numeric(
-                                left_edge.start(),
-                                right_edge.end(),
-                                0.0,
-                                "fraction".to_string(),
-                                right_edge.get_script(),
-                                None,
-                                None,
-                                combined_orig_txt,
-                            );
-                            if let Some(nd) = new_edge.get_num_data_mut() {
-                                nd.fraction = Some(fraction);
-                                nd.value = None;
-                                nd.orig_txt = combined_txt;
-                            }
-                            self.add_edge(new_edge.clone());
-                            next_pass_edges.push(new_edge);
-                            i += 2;
-                            consumed = true;
-                            break;
+                // --- Marker + (Number) ---
+                // Handles cases like "百分之" + "一". This is the primary path for `percentage-marker`.
+                // The `false` argument is crucial: it means "do NOT skip numeric edges".
+                if *marker_type == "percentage"
+                    && let Some(right_edge) = self.best_right_neighbor_edge(marker_end, false) {
+                        if right_edge.start() != marker_end || !right_edge.is_numeric() {
+                            continue 'outer;
                         }
+
+                        new_edges.push(Edge::new_regular(
+                            start,
+                            right_edge.end(),
+                            format!("{}%", right_edge.txt()),
+                            "percentage".to_string(),
+                        ));
+                        edges_to_deactivate.push(right_edge.clone());
                     }
                 }
-            }
-
-            if !consumed {
-                next_pass_edges.push(left_edge.clone());
-                i += 1;
-            }
         }
-        next_pass_edges
+
+        // Apply the collected changes to the lattice.
+        for edge in edges_to_deactivate {
+            if let Some(edges) = self.edge_lattice.get_mut(&(edge.start(), edge.end()))
+                && let Some(mut e) = edges.take(&edge) {
+                    e.set_active(false);
+                    edges.insert(e);
+                }
+        }
+        for edge in new_edges {
+            self.add_edge(edge);
+        }
     }
 
     #[inline]
@@ -2167,7 +2187,7 @@ impl<'a> Lattice<'a> {
         edges.extend(new_edges_to_add);
     }
 
-    pub fn best_rom_edge_path(&self, start: usize, end: usize, skip_num_edge: bool) -> Vec<Edge> {
+    pub fn best_rom_edge_path(&mut self, start: usize, end: usize, skip_num_edge: bool) -> Vec<Edge> {
         let mut result = Vec::new();
         let mut current_pos = start;
         while current_pos < end {

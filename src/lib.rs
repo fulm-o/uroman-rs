@@ -215,9 +215,9 @@ impl Uroman {
             dict_bool: HashMap::with_capacity(44366),
             dict_str: HashMap::with_capacity(122770),
             num_props: HashMap::with_capacity(1599),
-            percentage_markers: HashSet::new(),
-            fraction_connectors: HashSet::new(),
-            minus_signs: HashSet::new(),
+            percentage_markers: HashSet::with_capacity(1),
+            fraction_connectors: HashSet::with_capacity(1),
+            minus_signs: HashSet::with_capacity(2),
             plus_signs: HashSet::new(),
             hangul_rom: HashMap::new().into(),
             abugida_cache: HashMap::new().into(),
@@ -549,6 +549,9 @@ impl Uroman {
         }
         if rule.fraction_connector {
             self.fraction_connectors.insert(rule.s.clone());
+        }
+        if rule.percentage_marker {
+            self.percentage_markers.insert(rule.s.clone());
         }
 
         if rule.is_large_power {

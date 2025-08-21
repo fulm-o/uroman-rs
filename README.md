@@ -21,6 +21,7 @@ In the same spirit of fidelity, this project respects the licensing of the origi
 ## Features
 
 *   **Performance**: Achieves approximately **22x the speed** of the standard Python version, making it ideal for large-scale data processing. (See [Benchmark](#benchmark))
+*   **Robustness**: Fixes several edge-case bugs present in the original implementation, ensuring safer processing of diverse inputs. (See [Bug Fixes](#bug-fixes))
 *   **Self-Contained**: A pure Rust implementation with no dependency on external runtimes. It compiles to a single, portable binary.
 *   **High Fidelity**: Faithfully reproduces the behavior of the original `uroman` and passes its test suite.
 *   **Rich Output Formats**: Supports multiple output formats, including simple strings (`str`) and structured JSON data (`edges`, `alts`, `lattice`).
@@ -111,6 +112,32 @@ Performance was measured against the original Python implementation using [`hype
 | **`uroman-rs` (This project)**| **99.3 ms ± 3.6 ms**  | **~22.0x faster**     |
 | `uroman.py` (via `uv run`)    | 2180 ms ± 26 ms       | Baseline             |
 
+## Bug Fixes
+
+`uroman-rs` aims to be not only a faithful reimplementation but also a more robust one. It handles several edge cases that can cause the original `uroman.py` script to crash.
+
+For example, the original script panics on inputs with incomplete fractional patterns like `"百分之"` ("percent of..."). This occurs because the script expects a subsequent number but does not safely handle cases where one is not found, leading to a `NoneType` attribute error. This issue has been reported to the original author (see [isi-nlp/uroman#16](https://github.com/isi-nlp/uroman/issues/16)).
+
+```sh
+$ uv run uroman.py "百分之多少"
+Traceback (most recent call last):
+  ...
+  File ".../uroman.py", line 1100, in romanize_string_core
+    lat.add_numbers(self, **args)
+  File ".../uroman.py", line 2112, in add_numbers
+    if right_edge.value is None:
+AttributeError: 'NoneType' object has no attribute 'value'
+```
+
+In contrast, `uroman-rs` handles this input safely and provides a reasonable fallback romanization, demonstrating its enhanced reliability:
+
+```sh
+$ cargo run -r -- "百分之多少"
+  Running `target/release/uroman-rs '百分之多少'`
+baifenzhiduoshao
+```
+
+This ensures higher stability when processing large and diverse text corpora where such edge cases may appear.
 
 ## License
 

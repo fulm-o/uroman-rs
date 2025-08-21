@@ -89,6 +89,39 @@ fn test_fractions() {
 }
 
 #[test]
+fn test_chinese_fractions_and_percentages() {
+    let uroman = Uroman::new();
+
+    assert_romanizes_to_str(&uroman, "百分之一", None, "1%");
+    assert_romanizes_to_str(&uroman, "百分之五", None, "5%");
+
+    assert_romanizes_to_str(&uroman, "十分之一", None, "1/10");
+    assert_romanizes_to_str(&uroman, "三分之二", None, "2/3");
+
+    assert_romanizes_to_str(&uroman, "零分之五", None, "0fenzhi5");
+    assert_romanizes_to_str(
+        &uroman,
+        "今年的增长率是百分之多少？一些分析师认为会更高。",
+        None,
+        "jinniandezengzhanglushibaifenzhiduoshao? 1xiefenxishirenweihuigenggao. "
+    );
+}
+
+#[test]
+fn test_robustness_and_complex_fallbacks() {
+    let uroman = Uroman::new();
+
+    assert_romanizes_to_str(&uroman, "百分之", None, "baifenzhi");
+    assert_romanizes_to_str(&uroman, "零分之", None, "0fenzhi");
+    assert_romanizes_to_str(&uroman, "十分之泰", None, "10fenzhitai");
+
+    assert_romanizes_to_str(&uroman, "分之", None, "fenzhi");
+    assert_romanizes_to_str(&uroman, "零分之½ไม่มี-๑๒๓%", None, "0fenzhi1/2maimii-123%");
+    assert_romanizes_to_str(&uroman, "測試一百分之", None, "ceshi100fenzhi");
+    assert_romanizes_to_str(&uroman, "100分之50", None, "50%");
+}
+
+#[test]
 fn test_deu() {
     let uroman = Uroman::new();
 
